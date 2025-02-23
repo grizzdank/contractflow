@@ -80,7 +80,7 @@ const Auth = () => {
         <div className="max-w-md mx-auto p-6">
           <Card>
             <CardHeader className="relative">
-              <div className="absolute -top-24 right-4">
+              <div className="absolute -top-24 right-4 z-10">
                 <Squid isPasswordFocused={isPasswordFocused} />
               </div>
               <CardTitle>{isSignUp ? "Create an account" : "Welcome back"}</CardTitle>
