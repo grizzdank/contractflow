@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import ContractRequest from "./pages/ContractRequest";
+import ContractApproval from "./pages/ContractApproval";
 import Contracts from "./pages/Contracts";
 import NotFound from "./pages/NotFound";
 
@@ -16,6 +17,7 @@ const App = () => (
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/request" element={<ContractRequest />} />
+        <Route path="/approval" element={<ContractApproval />} />
         <Route path="/contracts" element={<Contracts />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

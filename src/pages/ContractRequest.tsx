@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ClipboardCheck, File, Send, User, Building, DollarSign, Calendar, Briefcase, FileText } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { useNavigate } from "react-router-dom";
 import {
   Select,
   SelectContent,
@@ -16,6 +18,7 @@ import {
 type ContractType = "grant" | "services" | "goods" | "sponsorship" | "amendment";
 
 const ContractRequest = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     requestTitle: "",
     description: "",
@@ -34,6 +37,7 @@ const ContractRequest = () => {
     signatoryName: "",
     signatoryEmail: "",
     sowFile: null as File | null,
+    status: "pending_approval" as "pending_approval" | "approved" | "rejected",
   });
   const { toast } = useToast();
 
@@ -45,10 +49,22 @@ const ContractRequest = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Show success toast with approval workflow information
     toast({
-      title: "Request Submitted",
-      description: "Your contract request has been submitted successfully.",
+      title: "Request Submitted Successfully",
+      description: `Your contract request has been sent to the ${formData.department} director for approval. You will be notified of any updates.`,
+      duration: 5000,
     });
+
+    // In a real application, we would save the request data here
+    // and trigger notifications to the department director
+
+    // Navigate to contracts page after submission
+    setTimeout(() => {
+      navigate('/contracts');
+    }, 2000);
+
     setFormData({
       requestTitle: "",
       description: "",
@@ -67,6 +83,7 @@ const ContractRequest = () => {
       signatoryName: "",
       signatoryEmail: "",
       sowFile: null,
+      status: "pending_approval",
     });
   };
 
