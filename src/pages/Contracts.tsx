@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,6 +25,32 @@ interface Contract {
   department: string;
 }
 
+const getContractSuffix = (type: Contract['type'], amendmentNumber?: string): string => {
+  switch (type) {
+    case 'services':
+    case 'goods':
+      return 'PSA';
+    case 'grant':
+      return 'GR';
+    case 'sponsorship':
+      return 'SP';
+    case 'amendment':
+      return `Amnd${amendmentNumber || '01'}`;
+    case 'vendor_agreement':
+      return 'VA';
+    case 'interagency_agreement':
+      return 'IAA';
+    case 'mou':
+      return 'MOU';
+    case 'sole_source':
+      return 'SS';
+    case 'rfp':
+      return 'RFP';
+    default:
+      return 'PSA';
+  }
+};
+
 const Contracts = () => {
   const [filters, setFilters] = useState({
     search: "",
@@ -38,7 +63,7 @@ const Contracts = () => {
   const contracts: Contract[] = [
     {
       id: "1",
-      contractNumber: "PO-2024-001",
+      contractNumber: "001-0224PSA",
       title: "Website Development Agreement",
       vendor: "TechCorp Solutions",
       amount: 50000,
@@ -50,7 +75,7 @@ const Contracts = () => {
     },
     {
       id: "2",
-      contractNumber: "PO-2024-002",
+      contractNumber: "002-0224PSA",
       title: "Marketing Services Agreement",
       vendor: "Digital Marketing Pro",
       amount: 25000,
@@ -62,14 +87,14 @@ const Contracts = () => {
     },
     {
       id: "3",
-      contractNumber: "PO-2024-003",
+      contractNumber: "003-0224IAA",
       title: "Cloud Services Agreement",
       vendor: "CloudHost Solutions",
       amount: 75000,
       startDate: "2024-01-01",
       endDate: "2025-06-30",
       status: "active",
-      type: "services",
+      type: "interagency_agreement",
       department: "IT",
     },
   ];
@@ -182,7 +207,7 @@ const Contracts = () => {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">PO Number</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Contract Number</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-600">Contract</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-600">Vendor</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-600">Amount</th>
@@ -199,8 +224,10 @@ const Contracts = () => {
                         key={contract.id}
                         className="border-b hover:bg-gray-50/50 transition-colors"
                       >
-                        <td className="py-3 px-4 font-medium text-gray-900">
-                          {contract.contractNumber}
+                        <td className="py-3 px-4">
+                          <span className="font-mono font-medium text-gray-900">
+                            {contract.contractNumber}
+                          </span>
                         </td>
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-2">
