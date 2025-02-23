@@ -21,7 +21,51 @@ interface ContractRequest {
   vendorAddress: string;
   sowFile: File | null;
   status: "pending_approval" | "approved" | "rejected";
+  contractNumber?: string;
 }
+
+const generateContractNumber = (type: string, date: Date = new Date()): string => {
+  const sequentialNumber = "001";
+  
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const year = date.getFullYear().toString().slice(-2);
+  
+  let suffix;
+  switch (type) {
+    case 'services':
+    case 'goods':
+      suffix = 'PSA';
+      break;
+    case 'grant':
+      suffix = 'GR';
+      break;
+    case 'sponsorship':
+      suffix = 'SP';
+      break;
+    case 'amendment':
+      suffix = 'Amnd01';
+      break;
+    case 'vendor_agreement':
+      suffix = 'VA';
+      break;
+    case 'interagency_agreement':
+      suffix = 'IAA';
+      break;
+    case 'mou':
+      suffix = 'MOU';
+      break;
+    case 'sole_source':
+      suffix = 'SS';
+      break;
+    case 'rfp':
+      suffix = 'RFP';
+      break;
+    default:
+      suffix = 'PSA';
+  }
+
+  return `${sequentialNumber}-${month}${year}${suffix}`;
+};
 
 const ContractApproval = () => {
   const { toast } = useToast();
@@ -44,10 +88,13 @@ const ContractApproval = () => {
   });
 
   const handleApprove = () => {
+    const contractNumber = generateContractNumber(request.contractType);
+    
     const approvalData = {
       ...request,
       status: "approved",
-      approvedBy: "John Doe", // This would come from your auth system
+      contractNumber,
+      approvedBy: "John Doe",
       approvalTimestamp: new Date().toISOString(),
       approvalComment: approvalComment
     };
@@ -56,7 +103,7 @@ const ContractApproval = () => {
 
     toast({
       title: "Contract Approved",
-      description: "The contract request has been approved with your modifications and the requestor has been notified.",
+      description: `Contract ${contractNumber} has been approved and the requestor has been notified.`,
     });
   };
 
@@ -64,7 +111,7 @@ const ContractApproval = () => {
     const rejectionData = {
       ...request,
       status: "rejected",
-      rejectedBy: "John Doe", // This would come from your auth system
+      rejectedBy: "John Doe",
       rejectionTimestamp: new Date().toISOString(),
       rejectionComment: approvalComment
     };
