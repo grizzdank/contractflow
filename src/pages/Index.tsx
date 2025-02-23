@@ -63,7 +63,7 @@ const Index = () => {
           <div className="flex justify-center gap-4">
             <Link to="/request">
               <Button size="lg" className="hover-effect bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700">
-                Submit Contract Request
+                Create Account
               </Button>
             </Link>
             <Button size="lg" variant="outline" className="hover-effect border-emerald-300 text-emerald-700 hover:text-emerald-800 hover:border-emerald-400">
