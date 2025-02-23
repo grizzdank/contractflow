@@ -1,10 +1,16 @@
 
-import { Home, User, LogOut } from "lucide-react";
+import { Home, User, LogOut, Menu } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const Navigation = () => {
   const [user, setUser] = useState(null);
@@ -54,7 +60,9 @@ const Navigation = () => {
               <span>Home</span>
             </Button>
           </Link>
-          <div className="flex items-center gap-4">
+
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center gap-4">
             <Link to="/contracts">
               <Button variant="ghost">Contracts</Button>
             </Link>
@@ -81,6 +89,47 @@ const Navigation = () => {
                 </Button>
               </Link>
             )}
+          </div>
+
+          {/* Mobile Navigation */}
+          <div className="md:hidden">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem asChild>
+                  <Link to="/contracts" className="w-full">
+                    Contracts
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/request" className="w-full">
+                    Request
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/team" className="w-full">
+                    Team
+                  </Link>
+                </DropdownMenuItem>
+                {user ? (
+                  <DropdownMenuItem onClick={handleSignOut}>
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Sign Out
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem asChild>
+                    <Link to="/auth" className="w-full">
+                      <User className="h-4 w-4 mr-2" />
+                      Sign In
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
