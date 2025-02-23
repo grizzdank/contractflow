@@ -2,8 +2,9 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle, XCircle, Building, Calendar, DollarSign, FileText, User } from "lucide-react";
+import { CheckCircle, XCircle, Building, Calendar, DollarSign, FileText } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 interface ContractRequest {
@@ -27,7 +28,7 @@ const ContractApproval = () => {
   const [approvalComment, setApprovalComment] = useState("");
   
   // Mock data - in a real app this would come from your backend
-  const mockRequest: ContractRequest = {
+  const [request, setRequest] = useState<ContractRequest>({
     requestTitle: "Sample Contract Request",
     description: "This is a sample contract request for demonstration purposes",
     contractType: "services",
@@ -41,10 +42,11 @@ const ContractApproval = () => {
     vendorAddress: "123 Tech Street, Silicon Valley, CA 94025",
     sowFile: null,
     status: "pending_approval"
-  };
+  });
 
   const handleApprove = () => {
     const approvalData = {
+      ...request,
       status: "approved",
       approvedBy: "John Doe", // This would come from your auth system
       approvalTimestamp: new Date().toISOString(),
@@ -56,12 +58,13 @@ const ContractApproval = () => {
 
     toast({
       title: "Contract Approved",
-      description: "The contract request has been approved and the requestor has been notified.",
+      description: "The contract request has been approved with your modifications and the requestor has been notified.",
     });
   };
 
   const handleReject = () => {
     const rejectionData = {
+      ...request,
       status: "rejected",
       rejectedBy: "John Doe", // This would come from your auth system
       rejectionTimestamp: new Date().toISOString(),
@@ -77,6 +80,12 @@ const ContractApproval = () => {
     });
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setRequest({ ...request, sowFile: e.target.files[0] });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-orange-50 p-6">
       <div className="max-w-3xl mx-auto space-y-8">
@@ -85,7 +94,7 @@ const ContractApproval = () => {
             Contract Approval
           </div>
           <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-emerald-700 to-orange-600 bg-clip-text text-transparent">
-            Review Contract Request
+            Review & Edit Contract Request
           </h1>
         </header>
 
@@ -97,21 +106,39 @@ const ContractApproval = () => {
                 <div className="space-y-3">
                   <div>
                     <label className="text-sm text-gray-500">Title</label>
-                    <p className="font-medium">{mockRequest.requestTitle}</p>
+                    <Input
+                      value={request.requestTitle}
+                      onChange={(e) => setRequest({ ...request, requestTitle: e.target.value })}
+                      className="mt-1"
+                    />
                   </div>
                   <div>
                     <label className="text-sm text-gray-500">Description</label>
-                    <p className="text-gray-700">{mockRequest.description}</p>
+                    <Textarea
+                      value={request.description}
+                      onChange={(e) => setRequest({ ...request, description: e.target.value })}
+                      className="mt-1"
+                      rows={4}
+                    />
                   </div>
                   <div>
                     <label className="text-sm text-gray-500">Contract Type</label>
-                    <p className="font-medium capitalize">{mockRequest.contractType.replace('_', ' ')}</p>
+                    <Input
+                      value={request.contractType}
+                      onChange={(e) => setRequest({ ...request, contractType: e.target.value })}
+                      className="mt-1"
+                    />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="w-4 h-4 text-gray-500" />
-                    <div>
-                      <label className="text-sm text-gray-500">Not to Exceed</label>
-                      <p className="font-medium">${Number(mockRequest.nte).toLocaleString()}</p>
+                  <div>
+                    <label className="text-sm text-gray-500">Not to Exceed</label>
+                    <div className="relative mt-1">
+                      <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4" />
+                      <Input
+                        type="number"
+                        value={request.nte}
+                        onChange={(e) => setRequest({ ...request, nte: e.target.value })}
+                        className="pl-10"
+                      />
                     </div>
                   </div>
                 </div>
@@ -120,24 +147,42 @@ const ContractApproval = () => {
               <div>
                 <h2 className="text-xl font-semibold mb-4">Vendor Information</h2>
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Building className="w-4 h-4 text-gray-500" />
-                    <div>
-                      <label className="text-sm text-gray-500">Vendor Name</label>
-                      <p className="font-medium">{mockRequest.vendorName}</p>
-                    </div>
+                  <div>
+                    <label className="text-sm text-gray-500">
+                      <Building className="inline w-4 h-4 mr-1 text-gray-500" />
+                      Vendor Name
+                    </label>
+                    <Input
+                      value={request.vendorName}
+                      onChange={(e) => setRequest({ ...request, vendorName: e.target.value })}
+                      className="mt-1"
+                    />
                   </div>
                   <div>
                     <label className="text-sm text-gray-500">Contact Email</label>
-                    <p className="text-gray-700">{mockRequest.vendorEmail}</p>
+                    <Input
+                      type="email"
+                      value={request.vendorEmail}
+                      onChange={(e) => setRequest({ ...request, vendorEmail: e.target.value })}
+                      className="mt-1"
+                    />
                   </div>
                   <div>
                     <label className="text-sm text-gray-500">Phone</label>
-                    <p className="text-gray-700">{mockRequest.vendorPhone}</p>
+                    <Input
+                      type="tel"
+                      value={request.vendorPhone}
+                      onChange={(e) => setRequest({ ...request, vendorPhone: e.target.value })}
+                      className="mt-1"
+                    />
                   </div>
                   <div>
                     <label className="text-sm text-gray-500">Address</label>
-                    <p className="text-gray-700">{mockRequest.vendorAddress}</p>
+                    <Input
+                      value={request.vendorAddress}
+                      onChange={(e) => setRequest({ ...request, vendorAddress: e.target.value })}
+                      className="mt-1"
+                    />
                   </div>
                 </div>
               </div>
@@ -146,36 +191,53 @@ const ContractApproval = () => {
             <div className="border-t pt-6">
               <h2 className="text-xl font-semibold mb-4">Contract Timeline</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-gray-500" />
-                  <div>
-                    <label className="text-sm text-gray-500">Start Date</label>
-                    <p className="font-medium">
-                      {new Date(mockRequest.startDate).toLocaleDateString()}
-                    </p>
-                  </div>
+                <div>
+                  <label className="text-sm text-gray-500">
+                    <Calendar className="inline w-4 h-4 mr-1 text-gray-500" />
+                    Start Date
+                  </label>
+                  <Input
+                    type="date"
+                    value={request.startDate}
+                    onChange={(e) => setRequest({ ...request, startDate: e.target.value })}
+                    className="mt-1"
+                  />
                 </div>
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-gray-500" />
-                  <div>
-                    <label className="text-sm text-gray-500">End Date</label>
-                    <p className="font-medium">
-                      {new Date(mockRequest.endDate).toLocaleDateString()}
-                    </p>
-                  </div>
+                <div>
+                  <label className="text-sm text-gray-500">
+                    <Calendar className="inline w-4 h-4 mr-1 text-gray-500" />
+                    End Date
+                  </label>
+                  <Input
+                    type="date"
+                    value={request.endDate}
+                    onChange={(e) => setRequest({ ...request, endDate: e.target.value })}
+                    className="mt-1"
+                  />
                 </div>
               </div>
             </div>
 
-            {mockRequest.sowFile && (
-              <div className="border-t pt-6">
-                <h2 className="text-xl font-semibold mb-4">Attachments</h2>
-                <div className="flex items-center gap-2 text-emerald-600">
-                  <FileText className="w-4 h-4" />
-                  <span className="font-medium">{mockRequest.sowFile.name}</span>
-                </div>
+            <div className="border-t pt-6">
+              <h2 className="text-xl font-semibold mb-4">Attachments</h2>
+              <div className="p-4 border-2 border-dashed rounded-lg">
+                <input
+                  type="file"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  id="file-upload"
+                />
+                <label
+                  htmlFor="file-upload"
+                  className="flex items-center justify-center space-x-2 cursor-pointer"
+                >
+                  <FileText className="w-5 h-5 text-gray-500" />
+                  <span className="text-sm text-gray-600">
+                    {request.sowFile ? request.sowFile.name : "Click to upload new SOW document"}
+                  </span>
+                </label>
               </div>
-            )}
+            </div>
 
             <div className="border-t pt-6">
               <div className="space-y-4">
