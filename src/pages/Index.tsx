@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { GanttChartSquare, Users2, Bell, Calendar } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Index = () => {
   return (
@@ -23,12 +24,14 @@ const Index = () => {
 
         {/* Quick Actions Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <QuickActionCard
-            icon={<GanttChartSquare className="h-6 w-6" />}
-            title="Contracts"
-            description="Manage and track all your contracts in one place"
-            gradientClass="from-emerald-500 to-green-500"
-          />
+          <Link to="/request">
+            <QuickActionCard
+              icon={<GanttChartSquare className="h-6 w-6" />}
+              title="Request Contract"
+              description="Submit a new contract request with SOW"
+              gradientClass="from-emerald-500 to-green-500"
+            />
+          </Link>
           <QuickActionCard
             icon={<Users2 className="h-6 w-6" />}
             title="Team"
@@ -58,9 +61,11 @@ const Index = () => {
             Join thousands of businesses managing their contracts efficiently.
           </p>
           <div className="flex justify-center gap-4">
-            <Button size="lg" className="hover-effect bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700">
-              Sign Up Now
-            </Button>
+            <Link to="/request">
+              <Button size="lg" className="hover-effect bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700">
+                Submit Contract Request
+              </Button>
+            </Link>
             <Button size="lg" variant="outline" className="hover-effect border-emerald-300 text-emerald-700 hover:text-emerald-800 hover:border-emerald-400">
               Learn More
             </Button>
