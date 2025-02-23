@@ -24,30 +24,30 @@ const Index = () => {
 
         {/* Quick Actions Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <QuickActionCard
+            icon={<GanttChartSquare className="h-6 w-6" />}
+            title="Contracts"
+            description="Track and manage active contracts"
+            gradientClass="from-emerald-500 to-green-500"
+          />
           <Link to="/request">
             <QuickActionCard
               icon={<GanttChartSquare className="h-6 w-6" />}
               title="Request Contract"
               description="Submit a new contract request with SOW"
-              gradientClass="from-emerald-500 to-green-500"
+              gradientClass="from-green-500 to-teal-500"
             />
           </Link>
           <QuickActionCard
             icon={<Users2 className="h-6 w-6" />}
             title="Team"
             description="Collaborate with your team members efficiently"
-            gradientClass="from-green-500 to-teal-500"
+            gradientClass="from-teal-500 to-orange-400"
           />
           <QuickActionCard
             icon={<Bell className="h-6 w-6" />}
             title="Notifications"
             description="Stay updated with important contract deadlines"
-            gradientClass="from-teal-500 to-orange-400"
-          />
-          <QuickActionCard
-            icon={<Calendar className="h-6 w-6" />}
-            title="Calendar"
-            description="View upcoming contract events and deadlines"
             gradientClass="from-orange-400 to-orange-500"
           />
         </div>
