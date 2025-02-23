@@ -4,16 +4,23 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ClipboardCheck, File, Send, User } from "lucide-react";
+import { ClipboardCheck, File, Send, User, Building, DollarSign, Calendar } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 const ContractRequest = () => {
   const [formData, setFormData] = useState({
     requestTitle: "",
     description: "",
+    nte: "",
+    startDate: "",
+    endDate: "",
+    accountingCodes: "",
     vendorName: "",
     vendorEmail: "",
     vendorPhone: "",
+    vendorAddress: "",
+    signatoryName: "",
+    signatoryEmail: "",
     sowFile: null as File | null,
   });
   const { toast } = useToast();
@@ -26,18 +33,23 @@ const ContractRequest = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Here you would typically send the data to your backend
     toast({
       title: "Request Submitted",
       description: "Your contract request has been submitted successfully.",
     });
-    // Reset form
     setFormData({
       requestTitle: "",
       description: "",
+      nte: "",
+      startDate: "",
+      endDate: "",
+      accountingCodes: "",
       vendorName: "",
       vendorEmail: "",
       vendorPhone: "",
+      vendorAddress: "",
+      signatoryName: "",
+      signatoryEmail: "",
       sowFile: null,
     });
   };
@@ -84,9 +96,64 @@ const ContractRequest = () => {
                 />
               </label>
 
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <label className="block">
+                  <span className="text-gray-700 flex items-center gap-2">
+                    <DollarSign className="h-4 w-4" />
+                    NTE Amount
+                  </span>
+                  <Input
+                    type="number"
+                    required
+                    value={formData.nte}
+                    onChange={(e) => setFormData({ ...formData, nte: e.target.value })}
+                    className="mt-1 block w-full"
+                    placeholder="0.00"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-gray-700 flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Start Date
+                  </span>
+                  <Input
+                    type="date"
+                    required
+                    value={formData.startDate}
+                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                    className="mt-1 block w-full"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-gray-700 flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    End Date
+                  </span>
+                  <Input
+                    type="date"
+                    required
+                    value={formData.endDate}
+                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                    className="mt-1 block w-full"
+                  />
+                </label>
+              </div>
+
+              <label className="block">
+                <span className="text-gray-700">Accounting Codes</span>
+                <Input
+                  type="text"
+                  required
+                  value={formData.accountingCodes}
+                  onChange={(e) => setFormData({ ...formData, accountingCodes: e.target.value })}
+                  className="mt-1 block w-full"
+                  placeholder="Enter accounting codes"
+                />
+              </label>
+
               <div className="bg-emerald-50 p-4 rounded-lg space-y-4">
                 <div className="flex items-center gap-2 text-emerald-700">
-                  <User className="h-5 w-5" />
+                  <Building className="h-5 w-5" />
                   <h3 className="font-medium">Vendor Information</h3>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -110,12 +177,51 @@ const ContractRequest = () => {
                       className="mt-1 block w-full"
                     />
                   </label>
-                  <label className="block md:col-span-2">
+                  <label className="block">
                     <span className="text-gray-700">Vendor Phone</span>
                     <Input
                       type="tel"
                       value={formData.vendorPhone}
                       onChange={(e) => setFormData({ ...formData, vendorPhone: e.target.value })}
+                      className="mt-1 block w-full"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-gray-700">Vendor Address</span>
+                    <Input
+                      type="text"
+                      required
+                      value={formData.vendorAddress}
+                      onChange={(e) => setFormData({ ...formData, vendorAddress: e.target.value })}
+                      className="mt-1 block w-full"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="bg-orange-50 p-4 rounded-lg space-y-4">
+                <div className="flex items-center gap-2 text-orange-700">
+                  <User className="h-5 w-5" />
+                  <h3 className="font-medium">Authorized Signatory</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <label className="block">
+                    <span className="text-gray-700">Signatory Name</span>
+                    <Input
+                      type="text"
+                      required
+                      value={formData.signatoryName}
+                      onChange={(e) => setFormData({ ...formData, signatoryName: e.target.value })}
+                      className="mt-1 block w-full"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-gray-700">Signatory Email</span>
+                    <Input
+                      type="email"
+                      required
+                      value={formData.signatoryEmail}
+                      onChange={(e) => setFormData({ ...formData, signatoryEmail: e.target.value })}
                       className="mt-1 block w-full"
                     />
                   </label>
