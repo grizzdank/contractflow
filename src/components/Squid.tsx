@@ -38,10 +38,7 @@ const Squid = ({ isPasswordFocused }: SquidProps) => {
   return (
     <div id="squid-container" className="relative w-16 h-16">
       {/* Squid body */}
-      <div className="absolute inset-0 bg-purple-200 transform-gpu transition-transform hover:scale-105" 
-           style={{
-             clipPath: 'polygon(20% 100%, 80% 100%, 100% 70%, 100% 30%, 50% 0%, 0% 30%, 0% 70%)',
-           }}>
+      <div className="absolute inset-0 bg-purple-200 rounded-full transform-gpu transition-transform hover:scale-105">
         <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2">
           {/* Tentacles */}
           {[...Array(5)].map((_, i) => (
