@@ -1,80 +1,83 @@
-
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { GanttChartSquare, Users2, Bell, Calendar } from "lucide-react";
 import { Link } from "react-router-dom";
+import Navigation from "@/components/Navigation";
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-orange-50 p-6">
-      <div className="max-w-7xl mx-auto space-y-8 fade-in">
-        {/* Header */}
-        <header className="text-center space-y-4">
-          <div className="inline-block px-4 py-1 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-full text-sm font-medium mb-4">
-            Welcome to ContractFlow
-          </div>
-          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-emerald-700 to-orange-600 bg-clip-text text-transparent">
-            Contract Management Made Simple
-          </h1>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            Streamline your contract workflow with our intuitive platform designed for small businesses.
-          </p>
-        </header>
+    <>
+      <Navigation />
+      <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-orange-50 pt-16">
+        <div className="max-w-7xl mx-auto space-y-8 fade-in p-6">
+          {/* Header */}
+          <header className="text-center space-y-4">
+            <div className="inline-block px-4 py-1 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-full text-sm font-medium mb-4">
+              Welcome to ContractFlow
+            </div>
+            <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-emerald-700 to-orange-600 bg-clip-text text-transparent">
+              Contract Management Made Simple
+            </h1>
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              Streamline your contract workflow with our intuitive platform designed for small businesses.
+            </p>
+          </header>
 
-        {/* Quick Actions Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Link to="/contracts">
-            <QuickActionCard
-              icon={<GanttChartSquare className="h-6 w-6" />}
-              title="Contracts"
-              description="Track and manage active contracts"
-              gradientClass="from-emerald-500 to-green-500"
-            />
-          </Link>
-          <Link to="/request">
-            <QuickActionCard
-              icon={<GanttChartSquare className="h-6 w-6" />}
-              title="Request Contract"
-              description="Submit a new contract request with SOW"
-              gradientClass="from-green-500 to-teal-500"
-            />
-          </Link>
-          <QuickActionCard
-            icon={<Users2 className="h-6 w-6" />}
-            title="Team"
-            description="Collaborate with your team members efficiently"
-            gradientClass="from-teal-500 to-orange-400"
-          />
-          <QuickActionCard
-            icon={<Bell className="h-6 w-6" />}
-            title="Notifications"
-            description="Stay updated with important contract deadlines"
-            gradientClass="from-orange-400 to-orange-500"
-          />
-        </div>
-
-        {/* Get Started Section */}
-        <section className="glass-panel p-8 text-center space-y-6 bg-gradient-to-r from-green-50 to-orange-50">
-          <h2 className="text-2xl font-semibold bg-gradient-to-r from-emerald-600 to-orange-600 bg-clip-text text-transparent">
-            Ready to Get Started?
-          </h2>
-          <p className="text-gray-600">
-            Join thousands of businesses managing their contracts efficiently.
-          </p>
-          <div className="flex justify-center gap-4">
-            <Link to="/request">
-              <Button size="lg" className="hover-effect bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700">
-                Create Account
-              </Button>
+          {/* Quick Actions Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Link to="/contracts">
+              <QuickActionCard
+                icon={<GanttChartSquare className="h-6 w-6" />}
+                title="Contracts"
+                description="Track and manage active contracts"
+                gradientClass="from-emerald-500 to-green-500"
+              />
             </Link>
-            <Button size="lg" variant="outline" className="hover-effect border-emerald-300 text-emerald-700 hover:text-emerald-800 hover:border-emerald-400">
-              Learn More
-            </Button>
+            <Link to="/request">
+              <QuickActionCard
+                icon={<GanttChartSquare className="h-6 w-6" />}
+                title="Request Contract"
+                description="Submit a new contract request with SOW"
+                gradientClass="from-green-500 to-teal-500"
+              />
+            </Link>
+            <QuickActionCard
+              icon={<Users2 className="h-6 w-6" />}
+              title="Team"
+              description="Collaborate with your team members efficiently"
+              gradientClass="from-teal-500 to-orange-400"
+            />
+            <QuickActionCard
+              icon={<Bell className="h-6 w-6" />}
+              title="Notifications"
+              description="Stay updated with important contract deadlines"
+              gradientClass="from-orange-400 to-orange-500"
+            />
           </div>
-        </section>
+
+          {/* Get Started Section */}
+          <section className="glass-panel p-8 text-center space-y-6 bg-gradient-to-r from-green-50 to-orange-50">
+            <h2 className="text-2xl font-semibold bg-gradient-to-r from-emerald-600 to-orange-600 bg-clip-text text-transparent">
+              Ready to Get Started?
+            </h2>
+            <p className="text-gray-600">
+              Join thousands of businesses managing their contracts efficiently.
+            </p>
+            <div className="flex justify-center gap-4">
+              <Link to="/request">
+                <Button size="lg" className="hover-effect bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700">
+                  Create Account
+                </Button>
+              </Link>
+              <Button size="lg" variant="outline" className="hover-effect border-emerald-300 text-emerald-700 hover:text-emerald-800 hover:border-emerald-400">
+                Learn More
+              </Button>
+            </div>
+          </section>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
