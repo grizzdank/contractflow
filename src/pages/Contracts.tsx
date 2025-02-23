@@ -15,6 +15,7 @@ import Navigation from "@/components/Navigation";
 
 interface Contract {
   id: string;
+  contractNumber: string;
   title: string;
   vendor: string;
   amount: number;
@@ -37,6 +38,7 @@ const Contracts = () => {
   const contracts: Contract[] = [
     {
       id: "1",
+      contractNumber: "PO-2024-001",
       title: "Website Development Agreement",
       vendor: "TechCorp Solutions",
       amount: 50000,
@@ -48,6 +50,7 @@ const Contracts = () => {
     },
     {
       id: "2",
+      contractNumber: "PO-2024-002",
       title: "Marketing Services Agreement",
       vendor: "Digital Marketing Pro",
       amount: 25000,
@@ -59,6 +62,7 @@ const Contracts = () => {
     },
     {
       id: "3",
+      contractNumber: "PO-2024-003",
       title: "Cloud Services Agreement",
       vendor: "CloudHost Solutions",
       amount: 75000,
@@ -74,7 +78,8 @@ const Contracts = () => {
     return (
       (filters.search === "" ||
         contract.title.toLowerCase().includes(filters.search.toLowerCase()) ||
-        contract.vendor.toLowerCase().includes(filters.search.toLowerCase())) &&
+        contract.vendor.toLowerCase().includes(filters.search.toLowerCase()) ||
+        contract.contractNumber.toLowerCase().includes(filters.search.toLowerCase())) &&
       (filters.status === "all" || contract.status === filters.status) &&
       (filters.type === "all" || contract.type === filters.type) &&
       (filters.department === "all" || contract.department === filters.department)
@@ -177,6 +182,7 @@ const Contracts = () => {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b">
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">PO Number</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-600">Contract</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-600">Vendor</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-600">Amount</th>
@@ -193,6 +199,9 @@ const Contracts = () => {
                         key={contract.id}
                         className="border-b hover:bg-gray-50/50 transition-colors"
                       >
+                        <td className="py-3 px-4 font-medium text-gray-900">
+                          {contract.contractNumber}
+                        </td>
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-2">
                             <FileText className="h-4 w-4 text-gray-500" />
@@ -228,7 +237,7 @@ const Contracts = () => {
                           </span>
                         </td>
                         <td className="py-3 px-4 text-gray-600 capitalize">
-                          {contract.type}
+                          {contract.type.replace(/_/g, " ")}
                         </td>
                         <td className="py-3 px-4 text-gray-600">
                           {contract.department}
