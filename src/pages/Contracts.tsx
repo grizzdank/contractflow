@@ -28,9 +28,9 @@ interface Contract {
 const Contracts = () => {
   const [filters, setFilters] = useState({
     search: "",
-    status: "",
-    type: "",
-    department: "",
+    status: "all",
+    type: "all",
+    department: "all",
   });
 
   // Mock data - in a real app this would come from your backend
@@ -75,9 +75,9 @@ const Contracts = () => {
       (filters.search === "" ||
         contract.title.toLowerCase().includes(filters.search.toLowerCase()) ||
         contract.vendor.toLowerCase().includes(filters.search.toLowerCase())) &&
-      (filters.status === "" || contract.status === filters.status) &&
-      (filters.type === "" || contract.type === filters.type) &&
-      (filters.department === "" || contract.department === filters.department)
+      (filters.status === "all" || contract.status === filters.status) &&
+      (filters.type === "all" || contract.type === filters.type) &&
+      (filters.department === "all" || contract.department === filters.department)
     );
   });
 
@@ -123,7 +123,7 @@ const Contracts = () => {
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Status</SelectItem>
+                      <SelectItem value="all">All Status</SelectItem>
                       <SelectItem value="active">Active</SelectItem>
                       <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="expired">Expired</SelectItem>
@@ -140,7 +140,7 @@ const Contracts = () => {
                       <SelectValue placeholder="Type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Types</SelectItem>
+                      <SelectItem value="all">All Types</SelectItem>
                       <SelectItem value="services">Services</SelectItem>
                       <SelectItem value="marketing">Marketing</SelectItem>
                       <SelectItem value="software">Software</SelectItem>
@@ -157,7 +157,7 @@ const Contracts = () => {
                       <SelectValue placeholder="Department" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Departments</SelectItem>
+                      <SelectItem value="all">All Departments</SelectItem>
                       <SelectItem value="IT">IT</SelectItem>
                       <SelectItem value="Marketing">Marketing</SelectItem>
                       <SelectItem value="Sales">Sales</SelectItem>
