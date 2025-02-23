@@ -1,16 +1,28 @@
-
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ClipboardCheck, File, Send, User, Building, DollarSign, Calendar } from "lucide-react";
+import { ClipboardCheck, File, Send, User, Building, DollarSign, Calendar, Briefcase, FileText } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+type ContractType = "grant" | "services" | "goods" | "sponsorship" | "amendment";
 
 const ContractRequest = () => {
   const [formData, setFormData] = useState({
     requestTitle: "",
     description: "",
+    contractType: "" as ContractType,
+    amendmentNumber: "",
+    department: "",
+    contractAdmin: "",
     nte: "",
     startDate: "",
     endDate: "",
@@ -40,6 +52,10 @@ const ContractRequest = () => {
     setFormData({
       requestTitle: "",
       description: "",
+      contractType: "" as ContractType,
+      amendmentNumber: "",
+      department: "",
+      contractAdmin: "",
       nte: "",
       startDate: "",
       endDate: "",
@@ -72,17 +88,83 @@ const ContractRequest = () => {
         <Card className="p-6 glass-panel">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-4">
-              <label className="block">
-                <span className="text-gray-700">Request Title</span>
-                <Input
-                  type="text"
-                  required
-                  value={formData.requestTitle}
-                  onChange={(e) => setFormData({ ...formData, requestTitle: e.target.value })}
-                  className="mt-1 block w-full"
-                  placeholder="Brief title for your request"
-                />
-              </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className="block">
+                  <span className="text-gray-700">Request Title</span>
+                  <Input
+                    type="text"
+                    required
+                    value={formData.requestTitle}
+                    onChange={(e) => setFormData({ ...formData, requestTitle: e.target.value })}
+                    className="mt-1 block w-full"
+                    placeholder="Brief title for your request"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-gray-700">Contract Type</span>
+                  <Select
+                    value={formData.contractType}
+                    onValueChange={(value: ContractType) => setFormData({ ...formData, contractType: value })}
+                  >
+                    <SelectTrigger className="mt-1 w-full">
+                      <SelectValue placeholder="Select contract type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="grant">Grant</SelectItem>
+                      <SelectItem value="services">Services</SelectItem>
+                      <SelectItem value="goods">Goods</SelectItem>
+                      <SelectItem value="sponsorship">Sponsorship</SelectItem>
+                      <SelectItem value="amendment">Amendment</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </label>
+              </div>
+
+              {formData.contractType === "amendment" && (
+                <label className="block">
+                  <span className="text-gray-700">Contract/PO Number to Amend</span>
+                  <Input
+                    type="text"
+                    value={formData.amendmentNumber}
+                    onChange={(e) => setFormData({ ...formData, amendmentNumber: e.target.value })}
+                    className="mt-1 block w-full"
+                    placeholder="Enter original contract or PO number"
+                  />
+                </label>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className="block">
+                  <span className="text-gray-700 flex items-center gap-2">
+                    <Briefcase className="h-4 w-4" />
+                    Requesting Department
+                  </span>
+                  <Input
+                    type="text"
+                    required
+                    value={formData.department}
+                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                    className="mt-1 block w-full"
+                    placeholder="Enter department name"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-gray-700 flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Contract Administrator
+                  </span>
+                  <Input
+                    type="text"
+                    required
+                    value={formData.contractAdmin}
+                    onChange={(e) => setFormData({ ...formData, contractAdmin: e.target.value })}
+                    className="mt-1 block w-full"
+                    placeholder="Enter administrator name"
+                  />
+                </label>
+              </div>
 
               <label className="block">
                 <span className="text-gray-700">Description</span>
