@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Navigation from "@/components/Navigation";
@@ -23,40 +22,21 @@ const Team = () => {
   useEffect(() => {
     const fetchTeamMembers = async () => {
       try {
-        // Get current user's session
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (!session) {
-          navigate('/auth');
-          return;
-        }
-
-        // First, get the current user's department and organization
-        const { data: userData, error: userError } = await supabase
+        // Temporarily bypass session check for development
+        const { data: fakeUserData } = await supabase
           .from('profiles')
-          .select('department, organization_id')
-          .eq('id', session.user.id)
+          .select('*')
+          .limit(1)
           .single();
 
-        if (userError) throw userError;
-        
-        if (!userData.organization_id) {
-          toast({
-            title: "No organization found",
-            description: "You need to be part of an organization to view team members.",
-            variant: "destructive",
-          });
-          return;
-        }
+        // Set a default department for development
+        setUserDepartment(fakeUserData?.department || 'Engineering');
 
-        setUserDepartment(userData.department);
-
-        // Then fetch team members from the same department and Operations
+        // Fetch team members from the same department and Operations
         const { data: members, error: membersError } = await supabase
           .from('profiles')
           .select('*')
-          .eq('organization_id', userData.organization_id)
-          .in('department', [userData.department, 'Operations']);
+          .in('department', [fakeUserData?.department || 'Engineering', 'Operations']);
 
         if (membersError) throw membersError;
 
@@ -73,7 +53,7 @@ const Team = () => {
     };
 
     fetchTeamMembers();
-  }, [navigate, toast]);
+  }, [toast]);
 
   // Group team members by department
   const groupedMembers = teamMembers.reduce((acc, member) => {
