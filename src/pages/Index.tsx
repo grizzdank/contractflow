@@ -24,12 +24,14 @@ const Index = () => {
 
         {/* Quick Actions Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <QuickActionCard
-            icon={<GanttChartSquare className="h-6 w-6" />}
-            title="Contracts"
-            description="Track and manage active contracts"
-            gradientClass="from-emerald-500 to-green-500"
-          />
+          <Link to="/contracts">
+            <QuickActionCard
+              icon={<GanttChartSquare className="h-6 w-6" />}
+              title="Contracts"
+              description="Track and manage active contracts"
+              gradientClass="from-emerald-500 to-green-500"
+            />
+          </Link>
           <Link to="/request">
             <QuickActionCard
               icon={<GanttChartSquare className="h-6 w-6" />}
