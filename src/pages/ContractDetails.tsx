@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { Card } from "@/components/ui/card";
@@ -118,6 +119,8 @@ const ContractDetails = () => {
   };
 
   const getStatusIcon = (status: Contract['status']) => {
+    if (!status) return null;
+    
     switch (status) {
       case 'ExecutedActive':
         return <CheckCircle className="h-4 w-4 text-green-500" />;
@@ -137,6 +140,8 @@ const ContractDetails = () => {
   };
 
   const getStatusColor = (status: Contract['status']) => {
+    if (!status) return 'bg-gray-100 text-gray-800';
+    
     switch (status) {
       case 'ExecutedActive':
         return 'bg-green-100 text-green-800';
@@ -154,6 +159,19 @@ const ContractDetails = () => {
         return 'bg-gray-100 text-gray-800';
     }
   };
+
+  if (!contract) {
+    return (
+      <>
+        <Navigation />
+        <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-orange-50 pt-16">
+          <div className="max-w-4xl mx-auto space-y-8 fade-in p-6">
+            <div>Loading contract details...</div>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
