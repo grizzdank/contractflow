@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -47,13 +48,13 @@ const Contracts = () => {
     },
     {
       id: "2",
-      title: "Marketing Services",
+      title: "Marketing Services Agreement",
       vendor: "Digital Marketing Pro",
       amount: 25000,
       startDate: "2024-03-15",
       endDate: "2025-03-15",
       status: "active",
-      type: "marketing",
+      type: "services",
       department: "Marketing",
     },
     {
