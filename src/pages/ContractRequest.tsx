@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type ContractType = "grant" | "services" | "goods" | "sponsorship" | "amendment";
+type ContractType = "grant" | "services" | "goods" | "sponsorship" | "amendment" | "vendor_agreement" | "interagency_agreement" | "mou";
 
 const ContractRequest = () => {
   const navigate = useNavigate();
@@ -133,6 +132,9 @@ const ContractRequest = () => {
                       <SelectItem value="goods">Goods</SelectItem>
                       <SelectItem value="sponsorship">Sponsorship</SelectItem>
                       <SelectItem value="amendment">Amendment</SelectItem>
+                      <SelectItem value="vendor_agreement">Vendor Agreement</SelectItem>
+                      <SelectItem value="interagency_agreement">InterAgency Agreement</SelectItem>
+                      <SelectItem value="mou">MOU</SelectItem>
                     </SelectContent>
                   </Select>
                 </label>
