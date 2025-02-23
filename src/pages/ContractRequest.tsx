@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ClipboardCheck, File, Send, User, Building, DollarSign, Calendar, Briefcase, FileText } from "lucide-react";
+import { ClipboardCheck, File, Send, User, Building, DollarSign, Calendar, Briefcase, FileText, Download } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
 import {
@@ -84,6 +84,66 @@ const ContractRequest = () => {
       signatoryEmail: "",
       sowFile: null,
       status: "pending_approval",
+    });
+  };
+
+  const downloadTemplate = () => {
+    // Create a sample SOW template
+    const template = `Statement of Work Template
+
+1. Project Overview
+------------------
+[Briefly describe the project's purpose and objectives]
+
+2. Scope of Work
+---------------
+[Detail the specific tasks, deliverables, and services to be provided]
+
+3. Timeline
+----------
+Start Date: [Insert Start Date]
+End Date: [Insert End Date]
+
+4. Deliverables
+--------------
+[List all expected deliverables with descriptions and due dates]
+
+5. Requirements
+-------------
+[Specify any technical, operational, or quality requirements]
+
+6. Payment Terms
+--------------
+Total Not-to-Exceed Amount: [Insert Amount]
+Payment Schedule: [Detail payment milestones]
+
+7. Key Personnel
+--------------
+[List key team members and their roles]
+
+8. Acceptance Criteria
+--------------------
+[Define how deliverables will be evaluated and accepted]
+
+9. Additional Terms
+-----------------
+[Include any special conditions or requirements]`;
+
+    // Create and download the file
+    const blob = new Blob([template], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sow_template.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Template Downloaded",
+      description: "Edit the template and upload it back when ready.",
+      duration: 3000,
     });
   };
 
@@ -334,30 +394,42 @@ const ContractRequest = () => {
                   </div>
                 </div>
 
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                  <label className="block cursor-pointer">
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept=".pdf,.doc,.docx"
-                      onChange={handleFileChange}
-                    />
-                    <div className="space-y-2">
-                      <File className="h-8 w-8 mx-auto text-gray-400" />
-                      <div className="text-sm text-gray-600">
-                        {formData.sowFile ? (
-                          <span className="text-emerald-600">{formData.sowFile.name}</span>
-                        ) : (
-                          <>
-                            <span className="text-emerald-600 font-medium">Click to upload</span> or drag
-                            and drop
-                            <br />
-                            SOW document (PDF, DOC, DOCX)
-                          </>
-                        )}
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                  <div className="text-center space-y-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={downloadTemplate}
+                      className="mb-4"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Download SOW Template
+                    </Button>
+
+                    <label className="block cursor-pointer">
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept=".pdf,.doc,.docx,.txt"
+                        onChange={handleFileChange}
+                      />
+                      <div className="space-y-2">
+                        <File className="h-8 w-8 mx-auto text-gray-400" />
+                        <div className="text-sm text-gray-600">
+                          {formData.sowFile ? (
+                            <span className="text-emerald-600">{formData.sowFile.name}</span>
+                          ) : (
+                            <>
+                              <span className="text-emerald-600 font-medium">Click to upload</span> or drag
+                              and drop
+                              <br />
+                              SOW document (PDF, DOC, DOCX, TXT)
+                            </>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </label>
+                    </label>
+                  </div>
                 </div>
               </div>
 
