@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import Navigation from "@/components/Navigation";
+import Squid from "@/components/Squid";
 
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -16,6 +17,7 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [organizationName, setOrganizationName] = useState("");
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -77,7 +79,10 @@ const Auth = () => {
       <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-orange-50 pt-16">
         <div className="max-w-md mx-auto p-6">
           <Card>
-            <CardHeader>
+            <CardHeader className="relative">
+              <div className="absolute -top-24 right-4">
+                <Squid isPasswordFocused={isPasswordFocused} />
+              </div>
               <CardTitle>{isSignUp ? "Create an account" : "Welcome back"}</CardTitle>
               <CardDescription>
                 {isSignUp
@@ -130,6 +135,8 @@ const Auth = () => {
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    onFocus={() => setIsPasswordFocused(true)}
+                    onBlur={() => setIsPasswordFocused(false)}
                     required
                   />
                 </div>
