@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Card } from "@/components/ui/card";
@@ -10,6 +9,8 @@ import { ContractHeader } from "@/components/contract/ContractHeader";
 import { ContractDetailsGrid } from "@/components/contract/ContractDetailsGrid";
 import { ContractAttachments } from "@/components/contract/ContractAttachments";
 import { ContractComments } from "@/components/contract/ContractComments";
+import { ContractExecutedDocument } from "@/components/contract/ContractExecutedDocument";
+import { ContractAuditTrail } from "@/components/contract/ContractAuditTrail";
 
 const ContractDetails = () => {
   const { contractNumber } = useParams();
@@ -136,6 +137,11 @@ const ContractDetails = () => {
 
           <Card className="p-6">
             <div className="space-y-8">
+              <ContractExecutedDocument
+                contractId={contractNumber || ''}
+                onDocumentUploaded={loadCOIFiles}
+              />
+
               <div>
                 <h3 className="text-lg font-medium mb-4">Certificate of Insurance (COI) Files</h3>
                 <COIFileUpload
@@ -147,6 +153,8 @@ const ContractDetails = () => {
               </div>
 
               <ContractAttachments attachments={contract.attachments} />
+
+              <ContractAuditTrail contractId={contractNumber || ''} />
 
               <ContractComments
                 comments={contract.comments}

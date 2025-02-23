@@ -9,6 +9,36 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      contract_audit_trail: {
+        Row: {
+          action_type: string
+          changes: Json | null
+          contract_id: string
+          id: string
+          performed_at: string
+          performed_by: string | null
+          performed_by_email: string
+        }
+        Insert: {
+          action_type: string
+          changes?: Json | null
+          contract_id: string
+          id?: string
+          performed_at?: string
+          performed_by?: string | null
+          performed_by_email: string
+        }
+        Update: {
+          action_type?: string
+          changes?: Json | null
+          contract_id?: string
+          id?: string
+          performed_at?: string
+          performed_by?: string | null
+          performed_by_email?: string
+        }
+        Relationships: []
+      }
       contract_coi_files: {
         Row: {
           contract_id: string
@@ -16,6 +46,7 @@ export type Database = {
           file_name: string
           file_path: string
           id: string
+          is_executed_contract: boolean | null
           uploaded_at: string
           uploaded_by: string | null
         }
@@ -25,6 +56,7 @@ export type Database = {
           file_name: string
           file_path: string
           id?: string
+          is_executed_contract?: boolean | null
           uploaded_at?: string
           uploaded_by?: string | null
         }
@@ -34,6 +66,7 @@ export type Database = {
           file_name?: string
           file_path?: string
           id?: string
+          is_executed_contract?: boolean | null
           uploaded_at?: string
           uploaded_by?: string | null
         }
