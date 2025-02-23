@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FileText, Search, Filter } from "lucide-react";
+import { FileText, Search, Filter, CheckCircle, Clock, Edit, Users } from "lucide-react";
 import Navigation from "@/components/Navigation";
 
 interface Contract {
@@ -20,7 +20,7 @@ interface Contract {
   amount: number;
   startDate: string;
   endDate: string;
-  status: "active" | "pending" | "expired";
+  status: "Requested" | "Draft" | "Review" | "InSignature" | "ExecutedActive" | "ExecutedExpired";
   type: "grant" | "services" | "goods" | "sponsorship" | "amendment" | "vendor_agreement" | "interagency_agreement" | "mou" | "sole_source" | "rfp";
   department: string;
 }
@@ -59,7 +59,6 @@ const Contracts = () => {
     department: "all",
   });
 
-  // Mock data - in a real app this would come from your backend
   const contracts: Contract[] = [
     {
       id: "1",
@@ -69,7 +68,7 @@ const Contracts = () => {
       amount: 50000,
       startDate: "2024-01-01",
       endDate: "2024-12-31",
-      status: "active",
+      status: "ExecutedActive",
       type: "services",
       department: "IT",
     },
@@ -81,7 +80,7 @@ const Contracts = () => {
       amount: 25000,
       startDate: "2024-03-15",
       endDate: "2025-03-15",
-      status: "active",
+      status: "Review",
       type: "services",
       department: "Marketing",
     },
@@ -93,11 +92,49 @@ const Contracts = () => {
       amount: 75000,
       startDate: "2024-01-01",
       endDate: "2025-06-30",
-      status: "active",
+      status: "InSignature",
       type: "interagency_agreement",
       department: "IT",
     },
   ];
+
+  const getStatusIcon = (status: Contract['status']) => {
+    switch (status) {
+      case 'ExecutedActive':
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'ExecutedExpired':
+        return <Clock className="h-4 w-4 text-gray-500" />;
+      case 'Draft':
+        return <Edit className="h-4 w-4 text-blue-500" />;
+      case 'Review':
+        return <FileText className="h-4 w-4 text-yellow-500" />;
+      case 'InSignature':
+        return <Users className="h-4 w-4 text-purple-500" />;
+      case 'Requested':
+        return <Clock className="h-4 w-4 text-blue-500" />;
+      default:
+        return null;
+    }
+  };
+
+  const getStatusColor = (status: Contract['status']) => {
+    switch (status) {
+      case 'ExecutedActive':
+        return 'bg-green-100 text-green-800';
+      case 'ExecutedExpired':
+        return 'bg-gray-100 text-gray-800';
+      case 'Draft':
+        return 'bg-blue-100 text-blue-800';
+      case 'Review':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'InSignature':
+        return 'bg-purple-100 text-purple-800';
+      case 'Requested':
+        return 'bg-blue-100 text-blue-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
 
   const filteredContracts = contracts.filter((contract) => {
     return (
@@ -154,9 +191,12 @@ const Contracts = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="expired">Expired</SelectItem>
+                      <SelectItem value="Requested">Requested</SelectItem>
+                      <SelectItem value="Draft">Draft</SelectItem>
+                      <SelectItem value="Review">Review</SelectItem>
+                      <SelectItem value="InSignature">In Signature</SelectItem>
+                      <SelectItem value="ExecutedActive">Active</SelectItem>
+                      <SelectItem value="ExecutedExpired">Expired</SelectItem>
                     </SelectContent>
                   </Select>
 
@@ -251,16 +291,11 @@ const Contracts = () => {
                         </td>
                         <td className="py-3 px-4">
                           <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize
-                              ${
-                                contract.status === "active"
-                                  ? "bg-green-100 text-green-800"
-                                  : contract.status === "pending"
-                                  ? "bg-yellow-100 text-yellow-800"
-                                  : "bg-gray-100 text-gray-800"
-                              }`}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium capitalize
+                              ${getStatusColor(contract.status)}`}
                           >
-                            {contract.status}
+                            {getStatusIcon(contract.status)}
+                            {contract.status === 'InSignature' ? 'In Signature' : contract.status}
                           </span>
                         </td>
                         <td className="py-3 px-4 text-gray-600 capitalize">
