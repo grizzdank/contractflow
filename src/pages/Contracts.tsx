@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FileText, Search, Filter, CheckCircle, Clock, Edit, Users } from "lucide-react";
+import { FileText, Search, Filter, CheckCircle, Clock, Edit, Users, User } from "lucide-react";
 import Navigation from "@/components/Navigation";
 
 interface Contract {
@@ -24,6 +24,10 @@ interface Contract {
   status: "Requested" | "Draft" | "Review" | "InSignature" | "ExecutedActive" | "ExecutedExpired";
   type: "grant" | "services" | "goods" | "sponsorship" | "amendment" | "vendor_agreement" | "interagency_agreement" | "mou" | "sole_source" | "rfp";
   department: string;
+  assignedTo?: {
+    name: string;
+    email: string;
+  };
 }
 
 const getContractSuffix = (type: Contract['type'], amendmentNumber?: string): string => {
@@ -72,6 +76,10 @@ const Contracts = () => {
       status: "ExecutedActive",
       type: "services",
       department: "IT",
+      assignedTo: {
+        name: "John Doe",
+        email: "john.doe@example.com"
+      }
     },
     {
       id: "2",
@@ -84,6 +92,10 @@ const Contracts = () => {
       status: "Review",
       type: "services",
       department: "Marketing",
+      assignedTo: {
+        name: "Jane Smith",
+        email: "jane.smith@example.com"
+      }
     },
     {
       id: "3",
@@ -96,6 +108,10 @@ const Contracts = () => {
       status: "InSignature",
       type: "interagency_agreement",
       department: "IT",
+      assignedTo: {
+        name: "Mike Johnson",
+        email: "mike.johnson@example.com"
+      }
     },
   ];
 
@@ -257,6 +273,7 @@ const Contracts = () => {
                       <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-600">Type</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-600">Department</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Assigned To</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -307,6 +324,15 @@ const Contracts = () => {
                         </td>
                         <td className="py-3 px-4 text-gray-600">
                           {contract.department}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-gray-400" />
+                            <div>
+                              <p className="font-medium">{contract.assignedTo?.name}</p>
+                              <p className="text-xs text-gray-500">{contract.assignedTo?.email}</p>
+                            </div>
+                          </div>
                         </td>
                       </tr>
                     ))}

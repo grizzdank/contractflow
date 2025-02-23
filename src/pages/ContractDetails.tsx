@@ -1,10 +1,8 @@
-
 import { useParams } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import Navigation from "@/components/Navigation";
 import { FileText, Building, DollarSign, Calendar, User, CheckCircle, Clock, Edit, Users } from "lucide-react";
 
-// Using the same Contract type from Contracts page
 interface Contract {
   id: string;
   contractNumber: string;
@@ -16,12 +14,15 @@ interface Contract {
   status: "Requested" | "Draft" | "Review" | "InSignature" | "ExecutedActive" | "ExecutedExpired";
   type: "grant" | "services" | "goods" | "sponsorship" | "amendment" | "vendor_agreement" | "interagency_agreement" | "mou" | "sole_source" | "rfp";
   department: string;
+  assignedTo?: {
+    name: string;
+    email: string;
+  };
 }
 
 const ContractDetails = () => {
   const { contractNumber } = useParams();
 
-  // Mock data - this would typically come from your API/database
   const contract: Contract = {
     id: "1",
     contractNumber: "001-0224PSA",
@@ -33,6 +34,10 @@ const ContractDetails = () => {
     status: "ExecutedActive",
     type: "services",
     department: "IT",
+    assignedTo: {
+      name: "John Doe",
+      email: "john.doe@example.com"
+    }
   };
 
   const getStatusIcon = (status: Contract['status']) => {
@@ -106,6 +111,17 @@ const ContractDetails = () => {
                       {getStatusIcon(contract.status)}
                       {contract.status === 'InSignature' ? 'In Signature' : contract.status}
                     </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Assigned To</label>
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-gray-400" />
+                    <div>
+                      <p className="font-medium">{contract.assignedTo?.name}</p>
+                      <p className="text-sm text-gray-500">{contract.assignedTo?.email}</p>
+                    </div>
                   </div>
                 </div>
 
