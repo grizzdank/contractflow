@@ -1,63 +1,130 @@
 
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Navigation from "@/components/Navigation";
 import { Users } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
+import { useNavigate } from "react-router-dom";
 
-// Example team data - you can replace this with real data later
-const teamMembers = [
-  {
-    name: "Sarah Johnson",
-    role: "CEO",
-    department: "Executive",
-    bio: "Visionary leader with 15+ years of experience in technology and innovation.",
-  },
-  {
-    name: "Michael Chen",
-    role: "CTO",
-    department: "Engineering",
-    bio: "Passionate about building scalable solutions and fostering technical excellence.",
-  },
-  {
-    name: "Emma Rodriguez",
-    role: "Head of Design",
-    department: "Design",
-    bio: "Creative director specializing in user-centered design and brand identity.",
-  },
-];
+type TeamMember = {
+  id: string;
+  full_name: string | null;
+  email: string;
+  department: string | null;
+};
 
 const Team = () => {
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [userDepartment, setUserDepartment] = useState<string | null>(null);
+  const { toast } = useToast();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchTeamMembers = async () => {
+      try {
+        // Get current user's session
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          navigate('/auth');
+          return;
+        }
+
+        // First, get the current user's department and organization
+        const { data: userData, error: userError } = await supabase
+          .from('profiles')
+          .select('department, organization_id')
+          .eq('id', session.user.id)
+          .single();
+
+        if (userError) throw userError;
+        
+        if (!userData.organization_id) {
+          toast({
+            title: "No organization found",
+            description: "You need to be part of an organization to view team members.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        setUserDepartment(userData.department);
+
+        // Then fetch team members from the same department and Operations
+        const { data: members, error: membersError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('organization_id', userData.organization_id)
+          .in('department', [userData.department, 'Operations']);
+
+        if (membersError) throw membersError;
+
+        setTeamMembers(members || []);
+
+      } catch (error: any) {
+        console.error('Error:', error);
+        toast({
+          title: "Error fetching team members",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    };
+
+    fetchTeamMembers();
+  }, [navigate, toast]);
+
+  // Group team members by department
+  const groupedMembers = teamMembers.reduce((acc, member) => {
+    const department = member.department || 'Other';
+    if (!acc[department]) {
+      acc[department] = [];
+    }
+    acc[department].push(member);
+    return acc;
+  }, {} as Record<string, TeamMember[]>);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation />
       <main className="container mx-auto px-4 pt-24 pb-12">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <div className="flex items-center gap-3 mb-8">
             <Users className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold tracking-tight">Our Team</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Your Team</h1>
           </div>
           
           <p className="text-muted-foreground mb-12">
-            Meet the talented individuals who make our success possible.
+            Viewing team members from your department{userDepartment ? ` (${userDepartment})` : ''} and Operations
           </p>
 
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {teamMembers.map((member) => (
-              <Card key={member.name} className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <CardTitle>{member.name}</CardTitle>
-                  <CardDescription>{member.role}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm font-medium text-primary mb-2">
-                    {member.department}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {member.bio}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {Object.entries(groupedMembers).map(([department, members]) => (
+            <div key={department} className="mb-12">
+              <h2 className="text-xl font-semibold mb-6 text-primary">{department}</h2>
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {members.map((member) => (
+                  <Card key={member.id} className="hover:shadow-lg transition-shadow">
+                    <CardHeader>
+                      <CardTitle>{member.full_name || 'Unnamed Member'}</CardTitle>
+                      <CardDescription>{member.email}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm font-medium text-primary">
+                        {member.department}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {Object.keys(groupedMembers).length === 0 && (
+            <div className="text-center text-gray-500 py-12">
+              No team members found in your department or Operations.
+            </div>
+          )}
         </div>
       </main>
     </div>
