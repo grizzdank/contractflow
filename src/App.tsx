@@ -9,6 +9,7 @@ import ContractApproval from "./pages/ContractApproval";
 import Contracts from "./pages/Contracts";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import ProtectedLayout from "./components/ProtectedLayout";
 
 const App = () => (
   <TooltipProvider>
@@ -17,10 +18,31 @@ const App = () => (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Index />} />
-        <Route path="/request" element={<ContractRequest />} />
-        <Route path="/approval" element={<ContractApproval />} />
-        <Route path="/contracts" element={<Contracts />} />
         <Route path="/auth" element={<Auth />} />
+        <Route
+          path="/request"
+          element={
+            <ProtectedLayout>
+              <ContractRequest />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/approval"
+          element={
+            <ProtectedLayout>
+              <ContractApproval />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/contracts"
+          element={
+            <ProtectedLayout>
+              <Contracts />
+            </ProtectedLayout>
+          }
+        />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
