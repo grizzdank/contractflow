@@ -250,6 +250,46 @@ const ContractDetails = () => {
                 </div>
 
                 <div>
+                  <label className="text-sm font-medium text-gray-500">Assigned To</label>
+                  {isEditing ? (
+                    <div className="space-y-2">
+                      <Input
+                        value={contract.assignedTo?.name || ''}
+                        onChange={(e) => setContract(prev => ({
+                          ...prev,
+                          assignedTo: {
+                            ...prev.assignedTo,
+                            name: e.target.value
+                          }
+                        }))}
+                        placeholder="Name"
+                        className="mt-1"
+                      />
+                      <Input
+                        value={contract.assignedTo?.email || ''}
+                        onChange={(e) => setContract(prev => ({
+                          ...prev,
+                          assignedTo: {
+                            ...prev.assignedTo,
+                            email: e.target.value
+                          }
+                        }))}
+                        placeholder="Email"
+                        type="email"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-gray-400" />
+                      <div>
+                        <p className="font-medium">{contract.assignedTo?.name}</p>
+                        <p className="text-sm text-gray-500">{contract.assignedTo?.email}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div>
                   <label className="text-sm font-medium text-gray-500">Vendor</label>
                   <div className="flex items-center gap-2">
                     <Building className="h-4 w-4 text-gray-400" />
