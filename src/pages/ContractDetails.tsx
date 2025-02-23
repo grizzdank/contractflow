@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import Navigation from "@/components/Navigation";
 import { FileText, Building, DollarSign, Calendar, User, CheckCircle, Clock, Edit, Users, Send, Download } from "lucide-react";
+import { COIFileUpload } from "@/components/COIFileUpload";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Select,
   SelectContent,
@@ -56,6 +57,7 @@ const ContractDetails = () => {
   const { contractNumber } = useParams();
   const [isEditing, setIsEditing] = useState(false);
   const [newComment, setNewComment] = useState("");
+  const [coiFiles, setCoiFiles] = useState<any[]>([]);
 
   const [contract, setContract] = useState<Contract>({
     id: "1",
@@ -157,6 +159,27 @@ const ContractDetails = () => {
         return 'bg-blue-100 text-blue-800';
       default:
         return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  useEffect(() => {
+    if (contractNumber) {
+      loadCOIFiles();
+    }
+  }, [contractNumber]);
+
+  const loadCOIFiles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('contract_coi_files')
+        .select('*')
+        .eq('contract_id', contractNumber)
+        .order('uploaded_at', { ascending: false });
+
+      if (error) throw error;
+      setCoiFiles(data || []);
+    } catch (error) {
+      console.error('Error loading COI files:', error);
     }
   };
 
@@ -358,51 +381,63 @@ const ContractDetails = () => {
           </Card>
 
           <Card className="p-6">
-            <div className="mt-8">
-              <h3 className="text-lg font-medium mb-4">Attachments</h3>
-              <div className="space-y-2">
-                {contract.attachments.map((attachment) => (
-                  <div key={attachment.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-gray-400" />
-                      <span>{attachment.name}</span>
-                    </div>
-                    <Button variant="ghost" size="sm">
-                      <Download className="h-4 w-4 mr-2" />
-                      Download
-                    </Button>
-                  </div>
-                ))}
+            <div className="space-y-8">
+              <div>
+                <h3 className="text-lg font-medium mb-4">Certificate of Insurance (COI) Files</h3>
+                <COIFileUpload
+                  contractId={contractNumber || ''}
+                  files={coiFiles}
+                  onFileUploaded={loadCOIFiles}
+                  onFileDeleted={loadCOIFiles}
+                />
               </div>
-            </div>
 
-            <div className="mt-8">
-              <h3 className="text-lg font-medium mb-4">Comments</h3>
-              <div className="space-y-4">
-                <div className="flex gap-2">
-                  <Textarea
-                    placeholder="Add a comment..."
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    className="flex-1"
-                  />
-                  <Button onClick={addComment}>
-                    <Send className="h-4 w-4 mr-2" />
-                    Post
-                  </Button>
-                </div>
-                <div className="space-y-4 mt-4">
-                  {contract.comments.map((comment) => (
-                    <div key={comment.id} className="bg-gray-50 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium">{comment.userName}</span>
-                        <span className="text-sm text-gray-500">
-                          {new Date(comment.timestamp).toLocaleString()}
-                        </span>
+              <div>
+                <h3 className="text-lg font-medium mb-4">Attachments</h3>
+                <div className="space-y-2">
+                  {contract.attachments.map((attachment) => (
+                    <div key={attachment.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-gray-400" />
+                        <span>{attachment.name}</span>
                       </div>
-                      <p className="text-gray-700">{comment.content}</p>
+                      <Button variant="ghost" size="sm">
+                        <Download className="h-4 w-4 mr-2" />
+                        Download
+                      </Button>
                     </div>
                   ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-medium mb-4">Comments</h3>
+                <div className="space-y-4">
+                  <div className="flex gap-2">
+                    <Textarea
+                      placeholder="Add a comment..."
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button onClick={addComment}>
+                      <Send className="h-4 w-4 mr-2" />
+                      Post
+                    </Button>
+                  </div>
+                  <div className="space-y-4 mt-4">
+                    {contract.comments.map((comment) => (
+                      <div key={comment.id} className="bg-gray-50 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-medium">{comment.userName}</span>
+                          <span className="text-sm text-gray-500">
+                            {new Date(comment.timestamp).toLocaleString()}
+                          </span>
+                        </div>
+                        <p className="text-gray-700">{comment.content}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

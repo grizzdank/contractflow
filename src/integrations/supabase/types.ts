@@ -9,6 +9,36 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      contract_coi_files: {
+        Row: {
+          contract_id: string
+          expiration_date: string | null
+          file_name: string
+          file_path: string
+          id: string
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          contract_id: string
+          expiration_date?: string | null
+          file_name: string
+          file_path: string
+          id?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          contract_id?: string
+          expiration_date?: string | null
+          file_name?: string
+          file_path?: string
+          id?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
       organization_members: {
         Row: {
           created_at: string
