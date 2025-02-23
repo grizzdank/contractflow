@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,12 +43,14 @@ const Index = () => {
                 gradientClass="from-green-500 to-teal-500"
               />
             </Link>
-            <QuickActionCard
-              icon={<Users2 className="h-6 w-6" />}
-              title="Team"
-              description="Collaborate with your team members efficiently"
-              gradientClass="from-teal-500 to-orange-400"
-            />
+            <Link to="/team">
+              <QuickActionCard
+                icon={<Users2 className="h-6 w-6" />}
+                title="Team"
+                description="Collaborate with your team members efficiently"
+                gradientClass="from-teal-500 to-orange-400"
+              />
+            </Link>
             <QuickActionCard
               icon={<Bell className="h-6 w-6" />}
               title="Notifications"
