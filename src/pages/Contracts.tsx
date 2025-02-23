@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -265,9 +266,12 @@ const Contracts = () => {
                         className="border-b hover:bg-gray-50/50 transition-colors"
                       >
                         <td className="py-3 px-4">
-                          <span className="font-mono font-medium text-gray-900">
+                          <Link 
+                            to={`/contracts/${contract.contractNumber}`}
+                            className="font-mono font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
+                          >
                             {contract.contractNumber}
-                          </span>
+                          </Link>
                         </td>
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-2">

@@ -1,54 +1,30 @@
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
+import Auth from "./pages/Auth";
+import Contracts from "./pages/Contracts";
 import ContractRequest from "./pages/ContractRequest";
 import ContractApproval from "./pages/ContractApproval";
-import Contracts from "./pages/Contracts";
-import Auth from "./pages/Auth";
-import NotFound from "./pages/NotFound";
+import ContractDetails from "./pages/ContractDetails";
 import Team from "./pages/Team";
-import ProtectedLayout from "./components/ProtectedLayout";
+import NotFound from "./pages/NotFound";
+import "./App.css";
 
-const App = () => (
-  <TooltipProvider>
-    <Toaster />
-    <Sonner />
-    <BrowserRouter>
+function App() {
+  return (
+    <Router>
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/auth" element={<Auth />} />
-        <Route
-          path="/request"
-          element={
-            <ProtectedLayout>
-              <ContractRequest />
-            </ProtectedLayout>
-          }
-        />
-        <Route
-          path="/approval"
-          element={
-            <ProtectedLayout>
-              <ContractApproval />
-            </ProtectedLayout>
-          }
-        />
-        <Route
-          path="/contracts"
-          element={
-            <ProtectedLayout>
-              <Contracts />
-            </ProtectedLayout>
-          }
-        />
+        <Route path="/contracts" element={<Contracts />} />
+        <Route path="/contracts/:contractNumber" element={<ContractDetails />} />
+        <Route path="/request" element={<ContractRequest />} />
+        <Route path="/approval" element={<ContractApproval />} />
         <Route path="/team" element={<Team />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
-    </BrowserRouter>
-  </TooltipProvider>
-);
+    </Router>
+  );
+}
 
 export default App;
