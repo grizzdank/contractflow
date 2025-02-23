@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ClipboardCheck, File, Send, User, Building, DollarSign, Calendar, Briefcase, FileText, Download } from "lucide-react";
+import { ClipboardCheck, File, Send, User, Building, DollarSign, Calendar, Briefcase, FileText, Download, X } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
 import {
@@ -36,59 +36,29 @@ const ContractRequest = () => {
     vendorAddress: "",
     signatoryName: "",
     signatoryEmail: "",
-    sowFile: null as File | null,
+    sowFiles: [] as File[],
     status: "pending_approval" as "pending_approval" | "approved" | "rejected",
   });
   const { toast } = useToast();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFormData({ ...formData, sowFile: e.target.files[0] });
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      setFormData(prev => ({
+        ...prev,
+        sowFiles: [...prev.sowFiles, ...newFiles]
+      }));
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Show success toast with approval workflow information
-    toast({
-      title: "Request Submitted Successfully",
-      description: `Your contract request has been sent to the ${formData.department} director for approval. You will be notified of any updates.`,
-      duration: 5000,
-    });
-
-    // In a real application, we would save the request data here
-    // and trigger notifications to the department director
-
-    // Navigate to contracts page after submission
-    setTimeout(() => {
-      navigate('/contracts');
-    }, 2000);
-
-    setFormData({
-      requestTitle: "",
-      description: "",
-      contractType: "" as ContractType,
-      amendmentNumber: "",
-      department: "",
-      contractAdmin: "",
-      nte: "",
-      startDate: "",
-      endDate: "",
-      accountingCodes: "",
-      vendorName: "",
-      vendorEmail: "",
-      vendorPhone: "",
-      vendorAddress: "",
-      signatoryName: "",
-      signatoryEmail: "",
-      sowFile: null,
-      status: "pending_approval",
-    });
+  const removeFile = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      sowFiles: prev.sowFiles.filter((_, i) => i !== index)
+    }));
   };
 
   const downloadTemplate = () => {
-    // Create a sample SOW template
     const template = `Statement of Work Template
 
 1. Project Overview
@@ -129,7 +99,6 @@ Payment Schedule: [Detail payment milestones]
 -----------------
 [Include any special conditions or requirements]`;
 
-    // Create and download the file
     const blob = new Blob([template], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -144,6 +113,41 @@ Payment Schedule: [Detail payment milestones]
       title: "Template Downloaded",
       description: "Edit the template and upload it back when ready.",
       duration: 3000,
+    });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    toast({
+      title: "Request Submitted Successfully",
+      description: `Your contract request has been sent to the ${formData.department} director for approval. You will be notified of any updates.`,
+      duration: 5000,
+    });
+
+    setTimeout(() => {
+      navigate('/contracts');
+    }, 2000);
+
+    setFormData({
+      requestTitle: "",
+      description: "",
+      contractType: "" as ContractType,
+      amendmentNumber: "",
+      department: "",
+      contractAdmin: "",
+      nte: "",
+      startDate: "",
+      endDate: "",
+      accountingCodes: "",
+      vendorName: "",
+      vendorEmail: "",
+      vendorPhone: "",
+      vendorAddress: "",
+      signatoryName: "",
+      signatoryEmail: "",
+      sowFiles: [],
+      status: "pending_approval",
     });
   };
 
@@ -412,23 +416,43 @@ Payment Schedule: [Detail payment milestones]
                         className="hidden"
                         accept=".pdf,.doc,.docx,.txt"
                         onChange={handleFileChange}
+                        multiple
                       />
                       <div className="space-y-2">
                         <File className="h-8 w-8 mx-auto text-gray-400" />
                         <div className="text-sm text-gray-600">
-                          {formData.sowFile ? (
-                            <span className="text-emerald-600">{formData.sowFile.name}</span>
-                          ) : (
-                            <>
-                              <span className="text-emerald-600 font-medium">Click to upload</span> or drag
-                              and drop
-                              <br />
-                              SOW document (PDF, DOC, DOCX, TXT)
-                            </>
-                          )}
+                          <span className="text-emerald-600 font-medium">Click to upload</span> or drag
+                          and drop
+                          <br />
+                          SOW documents (PDF, DOC, DOCX, TXT)
                         </div>
                       </div>
                     </label>
+
+                    {formData.sowFiles.length > 0 && (
+                      <div className="mt-4 space-y-2">
+                        <p className="text-sm font-medium text-gray-700">Uploaded files:</p>
+                        <div className="max-h-40 overflow-y-auto">
+                          {formData.sowFiles.map((file, index) => (
+                            <div
+                              key={`${file.name}-${index}`}
+                              className="flex items-center justify-between bg-gray-50 p-2 rounded-md text-sm"
+                            >
+                              <span className="text-emerald-600 truncate flex-1">{file.name}</span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeFile(index)}
+                                className="ml-2 text-gray-500 hover:text-red-500"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
