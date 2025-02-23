@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,7 +20,7 @@ interface Contract {
   startDate: string;
   endDate: string;
   status: "active" | "pending" | "expired";
-  type: string;
+  type: "grant" | "services" | "goods" | "sponsorship" | "amendment" | "vendor_agreement" | "interagency_agreement" | "mou" | "sole_source" | "rfp";
   department: string;
 }
 
@@ -141,9 +140,16 @@ const Contracts = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="grant">Grant</SelectItem>
                       <SelectItem value="services">Services</SelectItem>
-                      <SelectItem value="marketing">Marketing</SelectItem>
-                      <SelectItem value="software">Software</SelectItem>
+                      <SelectItem value="goods">Goods</SelectItem>
+                      <SelectItem value="sponsorship">Sponsorship</SelectItem>
+                      <SelectItem value="amendment">Amendment</SelectItem>
+                      <SelectItem value="vendor_agreement">Vendor Agreement</SelectItem>
+                      <SelectItem value="interagency_agreement">InterAgency Agreement</SelectItem>
+                      <SelectItem value="mou">MOU</SelectItem>
+                      <SelectItem value="sole_source">Sole/Single Source</SelectItem>
+                      <SelectItem value="rfp">RFP</SelectItem>
                     </SelectContent>
                   </Select>
 
