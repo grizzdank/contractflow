@@ -61,6 +61,9 @@ const Navigation = () => {
             <Link to="/request">
               <Button variant="ghost">Request</Button>
             </Link>
+            <Link to="/team">
+              <Button variant="ghost">Team</Button>
+            </Link>
             {user ? (
               <Button
                 variant="ghost"

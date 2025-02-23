@@ -9,6 +9,7 @@ import ContractApproval from "./pages/ContractApproval";
 import Contracts from "./pages/Contracts";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import Team from "./pages/Team";
 import ProtectedLayout from "./components/ProtectedLayout";
 
 const App = () => (
@@ -43,6 +44,7 @@ const App = () => (
             </ProtectedLayout>
           }
         />
+        <Route path="/team" element={<Team />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
