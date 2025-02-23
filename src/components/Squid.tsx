@@ -47,7 +47,7 @@ const Squid = ({ isPasswordFocused }: SquidProps) => {
               className="w-1.5 h-8 bg-purple-200 rounded-full"
               style={{
                 position: 'absolute',
-                left: `${(i - 2) * 6}px`,
+                left: `${(i - 2) * 8}px`,  // Changed from 6px to 8px to spread tentacles
                 bottom: '-24px',
                 transformOrigin: 'top',
                 animation: `wave ${1 + i * 0.1}s ease-in-out infinite alternate`,
