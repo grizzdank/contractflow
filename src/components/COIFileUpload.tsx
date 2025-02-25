@@ -1,9 +1,8 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Upload, Trash2, FileText } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { contractService } from "@/lib/dataService";
 
 interface COIFile {
   id: string;
@@ -31,27 +30,9 @@ export function COIFileUpload({ contractId, onFileUploaded, files, onFileDeleted
     try {
       setIsUploading(true);
       
-      // Upload file to storage
-      const fileExt = file.name.split('.').pop();
-      const filePath = `${contractId}/${crypto.randomUUID()}.${fileExt}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('coi_files')
-        .upload(filePath, file);
+      const { error } = await contractService.uploadCOIFile(contractId, file, expirationDate);
 
-      if (uploadError) throw uploadError;
-
-      // Create database record
-      const { error: dbError } = await supabase
-        .from('contract_coi_files')
-        .insert({
-          contract_id: contractId,
-          file_name: file.name,
-          file_path: filePath,
-          expiration_date: expirationDate || null,
-        });
-
-      if (dbError) throw dbError;
+      if (error) throw error;
 
       onFileUploaded();
     } catch (error) {
@@ -64,20 +45,9 @@ export function COIFileUpload({ contractId, onFileUploaded, files, onFileDeleted
 
   const handleDelete = async (filePath: string) => {
     try {
-      // Delete from storage
-      const { error: storageError } = await supabase.storage
-        .from('coi_files')
-        .remove([filePath]);
+      const { error } = await contractService.deleteFile(filePath);
 
-      if (storageError) throw storageError;
-
-      // Delete from database
-      const { error: dbError } = await supabase
-        .from('contract_coi_files')
-        .delete()
-        .eq('file_path', filePath);
-
-      if (dbError) throw dbError;
+      if (error) throw error;
 
       onFileDeleted();
     } catch (error) {

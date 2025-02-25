@@ -1,7 +1,6 @@
-
 import { useEffect, useState } from "react";
 import { Clock, User, FileText, Edit, CheckCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { contractService } from "@/lib/dataService";
 
 interface AuditTrailEntry {
   id: string;
@@ -25,11 +24,7 @@ export function ContractAuditTrail({ contractId }: ContractAuditTrailProps) {
 
   const loadAuditTrail = async () => {
     try {
-      const { data, error } = await supabase
-        .from('contract_audit_trail')
-        .select('*')
-        .eq('contract_id', contractId)
-        .order('performed_at', { ascending: false });
+      const { data, error } = await contractService.getContractAuditTrail(contractId);
 
       if (error) throw error;
       setAuditTrail(data || []);

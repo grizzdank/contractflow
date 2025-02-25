@@ -3,7 +3,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import Navigation from "@/components/Navigation";
 import { COIFileUpload } from "@/components/COIFileUpload";
-import { supabase } from "@/integrations/supabase/client";
 import { Contract } from "@/types/contract";
 import { ContractHeader } from "@/components/contract/ContractHeader";
 import { ContractDetailsGrid } from "@/components/contract/ContractDetailsGrid";
@@ -13,6 +12,7 @@ import { ContractExecutedDocument } from "@/components/contract/ContractExecuted
 import { ContractAuditTrail } from "@/components/contract/ContractAuditTrail";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { contractService } from "@/lib/dataService";
 
 const ContractDetails = () => {
   const { contractNumber } = useParams();
@@ -35,11 +35,7 @@ const ContractDetails = () => {
       setIsLoading(true);
       setError(null);
 
-      const { data, error } = await supabase
-        .from('contracts')
-        .select('*')
-        .eq('contract_number', contractNumber)
-        .maybeSingle();
+      const { data, error } = await contractService.getContractById(contractNumber);
 
       if (error) throw error;
 
@@ -48,37 +44,10 @@ const ContractDetails = () => {
         return;
       }
 
-      // Type assertion to ensure status and type match the expected enum values
-      const status = data.status as Contract['status'];
-      const type = data.type as Contract['type'];
-
-      setContract({
-        id: data.id,
-        contractNumber: data.contract_number,
-        title: data.title,
-        description: data.description,
-        vendor: data.vendor,
-        amount: data.amount,
-        startDate: data.start_date,
-        endDate: data.end_date,
-        status: status,
-        type: type,
-        department: data.department,
-        accountingCodes: data.accounting_codes,
-        vendorEmail: data.vendor_email,
-        vendorPhone: data.vendor_phone,
-        vendorAddress: data.vendor_address,
-        signatoryName: data.signatory_name,
-        signatoryEmail: data.signatory_email,
-        attachments: [],  // We'll need to implement attachment loading separately
-        comments: [],     // We'll need to implement comments loading separately
-        creatorEmail: data.creator_email,
-        creatorId: data.creator_id,
-        createdAt: data.created_at
-      });
-    } catch (error) {
+      setContract(data);
+    } catch (error: any) {
       console.error('Error loading contract:', error);
-      setError('Failed to load contract details');
+      setError(error.message || 'Failed to load contract details');
     } finally {
       setIsLoading(false);
     }
@@ -90,19 +59,12 @@ const ContractDetails = () => {
     if (!contract) return;
 
     try {
-      const { error } = await supabase
-        .from('contracts')
-        .update({
-          title: contract.title,
-          description: contract.description,
-          status: contract.status,
-        })
-        .eq('contract_number', contractNumber);
+      const { error } = await contractService.saveContract(contract);
 
       if (error) throw error;
       
       setIsEditing(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving contract:', error);
     }
   };
@@ -133,11 +95,7 @@ const ContractDetails = () => {
 
   const loadCOIFiles = async () => {
     try {
-      const { data, error } = await supabase
-        .from('contract_coi_files')
-        .select('*')
-        .eq('contract_id', contractNumber)
-        .order('uploaded_at', { ascending: false });
+      const { data, error } = await contractService.getContractCOIFiles(contractNumber!);
 
       if (error) throw error;
       setCoiFiles(data || []);

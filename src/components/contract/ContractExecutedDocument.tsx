@@ -1,9 +1,8 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Upload, Download, FileText } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { contractService } from "@/lib/dataService";
 
 interface ExecutedDocument {
   id: string;
@@ -23,15 +22,13 @@ export function ContractExecutedDocument({ contractId, onDocumentUploaded }: Con
 
   const loadExecutedDocument = async () => {
     try {
-      const { data, error } = await supabase
-        .from('contract_coi_files')
-        .select('*')
-        .eq('contract_id', contractId)
-        .eq('is_executed_contract', true)
-        .single();
+      const { data, error } = await contractService.getContractCOIFiles(contractId);
 
-      if (error && error.code !== 'PGRST116') throw error;
-      setExecutedDocument(data);
+      if (error) throw error;
+      
+      // Find the executed contract document
+      const executedDoc = data?.find(file => file.is_executed_contract);
+      setExecutedDocument(executedDoc || null);
     } catch (error) {
       console.error('Error loading executed document:', error);
     }
@@ -44,35 +41,9 @@ export function ContractExecutedDocument({ contractId, onDocumentUploaded }: Con
     try {
       setIsUploading(true);
       
-      const fileExt = file.name.split('.').pop();
-      const filePath = `${contractId}/executed_${crypto.randomUUID()}.${fileExt}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('coi_files')
-        .upload(filePath, file);
+      const { error } = await contractService.uploadExecutedDocument(contractId, file);
 
-      if (uploadError) throw uploadError;
-
-      const { error: dbError } = await supabase
-        .from('contract_coi_files')
-        .insert({
-          contract_id: contractId,
-          file_name: file.name,
-          file_path: filePath,
-          is_executed_contract: true,
-        });
-
-      if (dbError) throw dbError;
-
-      // Add audit trail entry
-      await supabase
-        .from('contract_audit_trail')
-        .insert({
-          contract_id: contractId,
-          action_type: 'executed',
-          changes: { file_name: file.name },
-          performed_by_email: 'current.user@example.com', // Should be replaced with actual user email
-        });
+      if (error) throw error;
 
       onDocumentUploaded();
       loadExecutedDocument();
@@ -85,9 +56,7 @@ export function ContractExecutedDocument({ contractId, onDocumentUploaded }: Con
 
   const handleDownload = async (filePath: string) => {
     try {
-      const { data, error } = await supabase.storage
-        .from('coi_files')
-        .download(filePath);
+      const { data, error } = await contractService.downloadFile(filePath);
 
       if (error) throw error;
 

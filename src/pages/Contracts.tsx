@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
@@ -13,8 +12,8 @@ import {
 } from "@/components/ui/select";
 import { FileText, Search, Filter, CheckCircle, Clock, Edit, Users, User } from "lucide-react";
 import Navigation from "@/components/Navigation";
-import { supabase } from "@/integrations/supabase/client";
 import { Contract } from "@/types/contract";
+import { contractService } from "@/lib/dataService";
 
 const getContractSuffix = (type: Contract['type'], amendmentNumber?: string): string => {
   switch (type) {
@@ -62,41 +61,10 @@ const Contracts = () => {
       setIsLoading(true);
       setError(null);
 
-      const { data, error } = await supabase
-        .from('contracts')
-        .select('*');
-
-      if (error) {
-        throw error;
-      }
-
-      const formattedContracts: Contract[] = data.map(contract => ({
-        id: contract.id,
-        contractNumber: contract.contract_number,
-        title: contract.title,
-        description: contract.description || "",
-        vendor: contract.vendor,
-        amount: contract.amount,
-        startDate: contract.start_date,
-        endDate: contract.end_date,
-        status: contract.status as Contract['status'],
-        type: contract.type as Contract['type'],
-        department: contract.department,
-        creatorEmail: contract.creator_email,
-        creatorId: contract.creator_id || undefined,
-        createdAt: contract.created_at,
-        vendorEmail: contract.vendor_email || "",
-        vendorPhone: contract.vendor_phone || "",
-        vendorAddress: contract.vendor_address || "",
-        signatoryName: contract.signatory_name || "",
-        signatoryEmail: contract.signatory_email || "",
-        accountingCodes: contract.accounting_codes || "", // Add this line
-        attachments: [], // Empty array for now as we'll handle attachments separately
-        comments: [], // Empty array for now as we'll handle comments separately
-        assignedTo: undefined // This will be handled later when we implement assignment functionality
-      }));
-
-      setContracts(formattedContracts);
+      const { data, error } = await contractService.getContracts();
+      
+      if (error) throw error;
+      setContracts(data || []);
     } catch (err) {
       console.error('Error loading contracts:', err);
       setError('Failed to load contracts');

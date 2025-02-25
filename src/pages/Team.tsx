@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Navigation from "@/components/Navigation";
 import { Users } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
+import { teamService } from "@/lib/dataService";
 
 type TeamMember = {
   id: string;
@@ -22,26 +22,16 @@ const Team = () => {
   useEffect(() => {
     const fetchTeamMembers = async () => {
       try {
-        // Temporarily bypass session check for development
-        const { data: fakeUserData } = await supabase
-          .from('profiles')
-          .select('*')
-          .limit(1)
-          .single();
+        const { data, error } = await teamService.getTeamMembers();
 
-        // Set a default department for development
-        setUserDepartment(fakeUserData?.department || 'Engineering');
-
-        // Fetch team members from the same department and Operations
-        const { data: members, error: membersError } = await supabase
-          .from('profiles')
-          .select('*')
-          .in('department', [fakeUserData?.department || 'Engineering', 'Operations']);
-
-        if (membersError) throw membersError;
-
-        setTeamMembers(members || []);
-
+        if (error) throw error;
+        
+        setTeamMembers(data || []);
+        
+        // Set user department based on first team member (for mock data)
+        if (data && data.length > 0) {
+          setUserDepartment(data[0].department);
+        }
       } catch (error: any) {
         console.error('Error:', error);
         toast({
