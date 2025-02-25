@@ -34,4 +34,7 @@ export interface Contract {
     url: string;
   }>;
   comments: Comment[];
+  creatorId?: string;
+  creatorEmail?: string;
+  createdAt?: string;
 }

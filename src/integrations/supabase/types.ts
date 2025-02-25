@@ -72,6 +72,75 @@ export type Database = {
         }
         Relationships: []
       }
+      contracts: {
+        Row: {
+          accounting_codes: string | null
+          amount: number
+          contract_number: string
+          created_at: string
+          creator_email: string
+          creator_id: string | null
+          department: string
+          description: string | null
+          end_date: string
+          id: string
+          signatory_email: string | null
+          signatory_name: string | null
+          start_date: string
+          status: string
+          title: string
+          type: string
+          vendor: string
+          vendor_address: string | null
+          vendor_email: string | null
+          vendor_phone: string | null
+        }
+        Insert: {
+          accounting_codes?: string | null
+          amount: number
+          contract_number: string
+          created_at?: string
+          creator_email: string
+          creator_id?: string | null
+          department: string
+          description?: string | null
+          end_date: string
+          id?: string
+          signatory_email?: string | null
+          signatory_name?: string | null
+          start_date: string
+          status: string
+          title: string
+          type: string
+          vendor: string
+          vendor_address?: string | null
+          vendor_email?: string | null
+          vendor_phone?: string | null
+        }
+        Update: {
+          accounting_codes?: string | null
+          amount?: number
+          contract_number?: string
+          created_at?: string
+          creator_email?: string
+          creator_id?: string | null
+          department?: string
+          description?: string | null
+          end_date?: string
+          id?: string
+          signatory_email?: string | null
+          signatory_name?: string | null
+          start_date?: string
+          status?: string
+          title?: string
+          type?: string
+          vendor?: string
+          vendor_address?: string | null
+          vendor_email?: string | null
+          vendor_phone?: string | null
+        }
+        Relationships: []
+      }
       organization_members: {
         Row: {
           created_at: string
