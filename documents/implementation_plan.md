@@ -141,7 +141,7 @@ Below is the step-by-step implementation plan for ContractFlow structured into f
 
     *   Test each API endpoint and database operation to ensure correct behavior.
 
-## Phase 3.5: OAuth and Microsoft Authentication Integration
+## Phase 3.5: OAuth Authentication Integration (Microsoft and Google)
 
 1.  **Microsoft Entra ID (Azure AD) Application Setup:**
 
@@ -155,80 +155,110 @@ Below is the step-by-step implementation plan for ContractFlow structured into f
         *   email, profile, openid, offline_access
     *   Generate a client secret and securely store it.
 
-2.  **Supabase OAuth Configuration:**
+2.  **Google Cloud Platform Project Setup:**
 
-    *   In the Supabase dashboard, navigate to Authentication → Providers → Microsoft.
-    *   Enable the Microsoft provider and configure it with:
-        *   Client ID from the Microsoft Entra ID application
-        *   Client Secret from the Microsoft Entra ID application
-        *   Redirect URL matching what was configured in Microsoft Entra ID
-    *   Configure additional scopes if needed (e.g., `offline_access` for refresh tokens).
+    *   Create a new project in the Google Cloud Console (https://console.cloud.google.com).
+    *   Configure the OAuth consent screen with appropriate app information and scopes.
+    *   Create OAuth 2.0 Client ID credentials with the following redirect URIs:
+        *   Production: `https://[your-supabase-project].supabase.co/auth/v1/callback`
+        *   Development: `http://localhost:8080/auth/callback`
+    *   Enable necessary Google APIs (Google+ API, Google People API).
+    *   Generate client ID and client secret and securely store them.
 
-3.  **Auth Component Enhancement:**
+3.  **Supabase OAuth Configuration:**
 
-    *   Update `src/pages/Auth.tsx` to include Microsoft sign-in option:
+    *   In the Supabase dashboard, navigate to Authentication → Providers.
+    *   For Microsoft:
+        *   Enable the Microsoft provider and configure it with:
+            *   Client ID from the Microsoft Entra ID application
+            *   Client Secret from the Microsoft Entra ID application
+            *   Redirect URL matching what was configured in Microsoft Entra ID
+        *   Configure additional scopes if needed (e.g., `offline_access` for refresh tokens).
+    *   For Google:
+        *   Enable the Google provider and configure it with:
+            *   Client ID from the Google Cloud Platform project
+            *   Client Secret from the Google Cloud Platform project
+            *   Redirect URL matching what was configured in Google Cloud Platform
+        *   Configure additional scopes if needed (e.g., `https://www.googleapis.com/auth/userinfo.profile` for profile information).
+
+4.  **Auth Component Enhancement:**
+
+    *   Update `src/pages/Auth.tsx` to include both Microsoft and Google sign-in options:
         *   Add Microsoft sign-in button with appropriate styling and icon.
-        *   Implement the `signInWithMicrosoft` function using Supabase's OAuth API.
-        *   Handle OAuth redirects and authentication state.
+        *   Add Google sign-in button with appropriate styling and icon.
+        *   Implement the `signInWithMicrosoft` and `signInWithGoogle` functions using Supabase's OAuth API.
+        *   Handle OAuth redirects and authentication state for both providers.
 
-4.  **Auth Callback Handler:**
+5.  **Auth Callback Handler:**
 
     *   Create `src/pages/AuthCallback.tsx` to handle OAuth redirects:
-        *   Implement logic to process the authentication response.
+        *   Implement logic to process the authentication response from both providers.
         *   Handle success and error states appropriately.
         *   Redirect users to the appropriate page after authentication.
     *   Update routing in `src/App.tsx` to include the callback route.
 
-5.  **Token Management:**
+6.  **Token Management:**
 
     *   Create `src/lib/auth/tokenManager.ts` to handle OAuth tokens:
-        *   Implement secure storage of access and refresh tokens.
+        *   Implement secure storage of access and refresh tokens for both providers.
         *   Add functionality to refresh expired tokens.
         *   Create utility functions to retrieve valid tokens for API calls.
 
-6.  **Microsoft Graph Integration:**
+7.  **Microsoft Graph Integration:**
 
     *   Create `src/lib/microsoft/graphClient.ts` to interact with Microsoft Graph API:
         *   Implement functions to fetch user profile information.
         *   Add methods to access organizational data if needed.
         *   Handle authentication errors and token refreshing.
 
-7.  **User Profile Synchronization:**
+8.  **Google API Integration:**
 
-    *   Enhance user profile management to sync with Microsoft account data:
-        *   Update user profiles with information from Microsoft Graph.
+    *   Create `src/lib/google/apiClient.ts` to interact with Google APIs:
+        *   Implement functions to fetch user profile information.
+        *   Add methods to access Google services if needed (Calendar, Drive, etc.).
+        *   Handle authentication errors and token refreshing.
+
+9.  **User Profile Synchronization:**
+
+    *   Enhance user profile management to sync with account data from both providers:
+        *   Update user profiles with information from Microsoft Graph or Google People API.
         *   Implement logic to handle profile picture synchronization.
-        *   Add department and organization information from Microsoft if available.
+        *   Add department and organization information if available.
+        *   Create a unified profile data structure regardless of authentication provider.
 
-8.  **Role Mapping:**
+10. **Role Mapping:**
 
-    *   Create `src/lib/auth/roleMappings.ts` to map Microsoft groups to application roles:
-        *   Implement logic to extract group membership from tokens or Graph API.
-        *   Map Microsoft security groups to ContractFlow roles.
+    *   Create `src/lib/auth/roleMappings.ts` to map provider groups to application roles:
+        *   Implement logic to extract group membership from tokens or provider APIs.
+        *   Map Microsoft security groups or Google groups to ContractFlow roles.
         *   Update user permissions based on group membership.
+        *   Ensure consistent role assignment regardless of authentication provider.
 
-9.  **Single Sign-On Experience:**
+11. **Single Sign-On Experience:**
 
     *   Enhance the authentication flow for seamless SSO experience:
         *   Implement silent authentication for returning users.
         *   Add "Keep me signed in" option.
-        *   Create session persistence that respects Microsoft's token expiration policies.
+        *   Create session persistence that respects token expiration policies.
+        *   Implement provider selection memory for returning users.
 
-10. **Security Enhancements:**
+12. **Security Enhancements:**
 
     *   Implement additional security measures for enterprise authentication:
         *   Add token validation to verify authenticity.
         *   Implement proper PKCE flow for public clients.
         *   Add protection against CSRF attacks in the OAuth flow.
         *   Set up proper CORS configuration for authentication endpoints.
+        *   Ensure secure handling of tokens from multiple providers.
 
-11. **Testing and Validation:**
+13. **Testing and Validation:**
 
     *   Create comprehensive tests for the OAuth implementation:
-        *   Test the sign-in flow with Microsoft accounts.
-        *   Verify token refresh functionality.
+        *   Test the sign-in flow with both Microsoft and Google accounts.
+        *   Verify token refresh functionality for both providers.
         *   Test role mapping and permissions.
         *   Validate the security of the implementation.
+        *   Ensure smooth user experience when switching between providers.
 
 ## Phase 4: Integration
 
