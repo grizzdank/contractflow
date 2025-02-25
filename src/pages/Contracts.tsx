@@ -70,11 +70,11 @@ const Contracts = () => {
         throw error;
       }
 
-      const formattedContracts = data.map(contract => ({
+      const formattedContracts: Contract[] = data.map(contract => ({
         id: contract.id,
         contractNumber: contract.contract_number,
         title: contract.title,
-        description: contract.description,
+        description: contract.description || "",
         vendor: contract.vendor,
         amount: contract.amount,
         startDate: contract.start_date,
@@ -83,15 +83,17 @@ const Contracts = () => {
         type: contract.type as Contract['type'],
         department: contract.department,
         creatorEmail: contract.creator_email,
-        creatorId: contract.creator_id,
+        creatorId: contract.creator_id || undefined,
         createdAt: contract.created_at,
-        vendorEmail: contract.vendor_email,
-        vendorPhone: contract.vendor_phone,
-        vendorAddress: contract.vendor_address,
-        signatoryName: contract.signatory_name,
-        signatoryEmail: contract.signatory_email,
-        attachments: [],
-        comments: [],
+        vendorEmail: contract.vendor_email || "",
+        vendorPhone: contract.vendor_phone || "",
+        vendorAddress: contract.vendor_address || "",
+        signatoryName: contract.signatory_name || "",
+        signatoryEmail: contract.signatory_email || "",
+        accountingCodes: contract.accounting_codes || "", // Add this line
+        attachments: [], // Empty array for now as we'll handle attachments separately
+        comments: [], // Empty array for now as we'll handle comments separately
+        assignedTo: undefined // This will be handled later when we implement assignment functionality
       }));
 
       setContracts(formattedContracts);
