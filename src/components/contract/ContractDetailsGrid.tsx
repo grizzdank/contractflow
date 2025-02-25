@@ -4,6 +4,7 @@ import { ContractStatus } from "./components/ContractStatus";
 import { ContractAssignee } from "./components/ContractAssignee";
 import { ContractBasicInfo } from "./components/ContractBasicInfo";
 import { ContractDates } from "./components/ContractDates";
+import { ContractCreator } from "./components/ContractCreator";
 
 interface ContractDetailsGridProps {
   contract: Contract | null;
@@ -27,6 +28,11 @@ export function ContractDetailsGrid({
           contract={contract}
           isEditing={isEditing}
           onDescriptionChange={(description) => onContractChange({ description })}
+        />
+
+        <ContractCreator
+          creatorEmail={contract.creatorEmail}
+          createdAt={contract.createdAt}
         />
 
         <ContractStatus

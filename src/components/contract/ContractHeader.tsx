@@ -48,7 +48,7 @@ export function ContractHeader({
           ) : (
             <>
               <Edit className="h-4 w-4 mr-2" />
-              Edit Contract
+              Edit Contract Record
             </>
           )}
         </Button>
