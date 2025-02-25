@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,23 +13,8 @@ import {
 } from "@/components/ui/select";
 import { FileText, Search, Filter, CheckCircle, Clock, Edit, Users, User } from "lucide-react";
 import Navigation from "@/components/Navigation";
-
-interface Contract {
-  id: string;
-  contractNumber: string;
-  title: string;
-  vendor: string;
-  amount: number;
-  startDate: string;
-  endDate: string;
-  status: "Requested" | "Draft" | "Review" | "InSignature" | "ExecutedActive" | "ExecutedExpired";
-  type: "grant" | "services" | "goods" | "sponsorship" | "amendment" | "vendor_agreement" | "interagency_agreement" | "mou" | "sole_source" | "rfp";
-  department: string;
-  assignedTo?: {
-    name: string;
-    email: string;
-  };
-}
+import { supabase } from "@/integrations/supabase/client";
+import { Contract } from "@/types/contract";
 
 const getContractSuffix = (type: Contract['type'], amendmentNumber?: string): string => {
   switch (type) {
@@ -63,57 +49,59 @@ const Contracts = () => {
     type: "all",
     department: "all",
   });
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const contracts: Contract[] = [
-    {
-      id: "1",
-      contractNumber: "001-0224PSA",
-      title: "Website Development Agreement",
-      vendor: "TechCorp Solutions",
-      amount: 50000,
-      startDate: "2024-01-01",
-      endDate: "2024-12-31",
-      status: "ExecutedActive",
-      type: "services",
-      department: "IT",
-      assignedTo: {
-        name: "John Doe",
-        email: "john.doe@example.com"
+  useEffect(() => {
+    loadContracts();
+  }, []);
+
+  const loadContracts = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const { data, error } = await supabase
+        .from('contracts')
+        .select('*');
+
+      if (error) {
+        throw error;
       }
-    },
-    {
-      id: "2",
-      contractNumber: "002-0224PSA",
-      title: "Marketing Services Agreement",
-      vendor: "Digital Marketing Pro",
-      amount: 25000,
-      startDate: "2024-03-15",
-      endDate: "2025-03-15",
-      status: "Review",
-      type: "services",
-      department: "Marketing",
-      assignedTo: {
-        name: "Jane Smith",
-        email: "jane.smith@example.com"
-      }
-    },
-    {
-      id: "3",
-      contractNumber: "003-0224IAA",
-      title: "Cloud Services Agreement",
-      vendor: "CloudHost Solutions",
-      amount: 75000,
-      startDate: "2024-01-01",
-      endDate: "2025-06-30",
-      status: "InSignature",
-      type: "interagency_agreement",
-      department: "IT",
-      assignedTo: {
-        name: "Mike Johnson",
-        email: "mike.johnson@example.com"
-      }
-    },
-  ];
+
+      const formattedContracts = data.map(contract => ({
+        id: contract.id,
+        contractNumber: contract.contract_number,
+        title: contract.title,
+        description: contract.description,
+        vendor: contract.vendor,
+        amount: contract.amount,
+        startDate: contract.start_date,
+        endDate: contract.end_date,
+        status: contract.status as Contract['status'],
+        type: contract.type as Contract['type'],
+        department: contract.department,
+        creatorEmail: contract.creator_email,
+        creatorId: contract.creator_id,
+        createdAt: contract.created_at,
+        vendorEmail: contract.vendor_email,
+        vendorPhone: contract.vendor_phone,
+        vendorAddress: contract.vendor_address,
+        signatoryName: contract.signatory_name,
+        signatoryEmail: contract.signatory_email,
+        attachments: [],
+        comments: [],
+      }));
+
+      setContracts(formattedContracts);
+    } catch (err) {
+      console.error('Error loading contracts:', err);
+      setError('Failed to load contracts');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const getStatusIcon = (status: Contract['status']) => {
     switch (status) {
@@ -184,161 +172,181 @@ const Contracts = () => {
 
           <Card className="p-6">
             <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
-                  <Input
-                    placeholder="Search contracts..."
-                    value={filters.search}
-                    onChange={(e) =>
-                      setFilters({ ...filters, search: e.target.value })
-                    }
-                    className="pl-10"
-                  />
+              {error && (
+                <div className="bg-red-50 text-red-600 p-4 rounded-md">
+                  {error}
                 </div>
-                <div className="flex gap-4 flex-wrap sm:flex-nowrap">
-                  <Select
-                    value={filters.status}
-                    onValueChange={(value) =>
-                      setFilters({ ...filters, status: value })
-                    }
-                  >
-                    <SelectTrigger className="w-[140px]">
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="Requested">Requested</SelectItem>
-                      <SelectItem value="Draft">Draft</SelectItem>
-                      <SelectItem value="Review">Review</SelectItem>
-                      <SelectItem value="InSignature">In Signature</SelectItem>
-                      <SelectItem value="ExecutedActive">Active</SelectItem>
-                      <SelectItem value="ExecutedExpired">Expired</SelectItem>
-                    </SelectContent>
-                  </Select>
+              )}
 
-                  <Select
-                    value={filters.type}
-                    onValueChange={(value) =>
-                      setFilters({ ...filters, type: value })
-                    }
-                  >
-                    <SelectTrigger className="w-[140px]">
-                      <SelectValue placeholder="Type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Types</SelectItem>
-                      <SelectItem value="grant">Grant</SelectItem>
-                      <SelectItem value="services">Services</SelectItem>
-                      <SelectItem value="goods">Goods</SelectItem>
-                      <SelectItem value="sponsorship">Sponsorship</SelectItem>
-                      <SelectItem value="amendment">Amendment</SelectItem>
-                      <SelectItem value="vendor_agreement">Vendor Agreement</SelectItem>
-                      <SelectItem value="interagency_agreement">InterAgency Agreement</SelectItem>
-                      <SelectItem value="mou">MOU</SelectItem>
-                      <SelectItem value="sole_source">Sole/Single Source</SelectItem>
-                      <SelectItem value="rfp">RFP</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  <Select
-                    value={filters.department}
-                    onValueChange={(value) =>
-                      setFilters({ ...filters, department: value })
-                    }
-                  >
-                    <SelectTrigger className="w-[140px]">
-                      <SelectValue placeholder="Department" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Departments</SelectItem>
-                      <SelectItem value="IT">IT</SelectItem>
-                      <SelectItem value="Marketing">Marketing</SelectItem>
-                      <SelectItem value="Sales">Sales</SelectItem>
-                    </SelectContent>
-                  </Select>
+              {isLoading ? (
+                <div className="text-center py-8 text-gray-500">
+                  Loading contracts...
                 </div>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Contract Number</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Contract</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Vendor</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Amount</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Start Date</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">End Date</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Type</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Department</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Assigned To</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredContracts.map((contract) => (
-                      <tr
-                        key={contract.id}
-                        className="border-b hover:bg-gray-50/50 transition-colors"
+              ) : (
+                <>
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
+                      <Input
+                        placeholder="Search contracts..."
+                        value={filters.search}
+                        onChange={(e) =>
+                          setFilters({ ...filters, search: e.target.value })
+                        }
+                        className="pl-10"
+                      />
+                    </div>
+                    <div className="flex gap-4 flex-wrap sm:flex-nowrap">
+                      <Select
+                        value={filters.status}
+                        onValueChange={(value) =>
+                          setFilters({ ...filters, status: value })
+                        }
                       >
-                        <td className="py-3 px-4">
-                          <Link 
-                            to={`/contracts/${contract.contractNumber}`}
-                            className="font-mono font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
+                        <SelectTrigger className="w-[140px]">
+                          <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Status</SelectItem>
+                          <SelectItem value="Requested">Requested</SelectItem>
+                          <SelectItem value="Draft">Draft</SelectItem>
+                          <SelectItem value="Review">Review</SelectItem>
+                          <SelectItem value="InSignature">In Signature</SelectItem>
+                          <SelectItem value="ExecutedActive">Active</SelectItem>
+                          <SelectItem value="ExecutedExpired">Expired</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <Select
+                        value={filters.type}
+                        onValueChange={(value) =>
+                          setFilters({ ...filters, type: value })
+                        }
+                      >
+                        <SelectTrigger className="w-[140px]">
+                          <SelectValue placeholder="Type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Types</SelectItem>
+                          <SelectItem value="grant">Grant</SelectItem>
+                          <SelectItem value="services">Services</SelectItem>
+                          <SelectItem value="goods">Goods</SelectItem>
+                          <SelectItem value="sponsorship">Sponsorship</SelectItem>
+                          <SelectItem value="amendment">Amendment</SelectItem>
+                          <SelectItem value="vendor_agreement">Vendor Agreement</SelectItem>
+                          <SelectItem value="interagency_agreement">InterAgency Agreement</SelectItem>
+                          <SelectItem value="mou">MOU</SelectItem>
+                          <SelectItem value="sole_source">Sole/Single Source</SelectItem>
+                          <SelectItem value="rfp">RFP</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <Select
+                        value={filters.department}
+                        onValueChange={(value) =>
+                          setFilters({ ...filters, department: value })
+                        }
+                      >
+                        <SelectTrigger className="w-[140px]">
+                          <SelectValue placeholder="Department" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Departments</SelectItem>
+                          <SelectItem value="IT">IT</SelectItem>
+                          <SelectItem value="Marketing">Marketing</SelectItem>
+                          <SelectItem value="Sales">Sales</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left py-3 px-4 font-medium text-gray-600">Contract Number</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-600">Contract</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-600">Vendor</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-600">Amount</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-600">Start Date</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-600">End Date</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-600">Type</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-600">Department</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-600">Created By</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredContracts.map((contract) => (
+                          <tr
+                            key={contract.id}
+                            className="border-b hover:bg-gray-50/50 transition-colors"
                           >
-                            {contract.contractNumber}
-                          </Link>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2">
-                            <FileText className="h-4 w-4 text-gray-500" />
-                            <span className="font-medium text-gray-900">
-                              {contract.title}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 text-gray-600">
-                          {contract.vendor}
-                        </td>
-                        <td className="py-3 px-4 text-gray-600">
-                          ${contract.amount.toLocaleString()}
-                        </td>
-                        <td className="py-3 px-4 text-gray-600">
-                          {new Date(contract.startDate).toLocaleDateString()}
-                        </td>
-                        <td className="py-3 px-4 text-gray-600">
-                          {new Date(contract.endDate).toLocaleDateString()}
-                        </td>
-                        <td className="py-3 px-4">
-                          <span
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium capitalize
-                              ${getStatusColor(contract.status)}`}
-                          >
-                            {getStatusIcon(contract.status)}
-                            {contract.status === 'InSignature' ? 'In Signature' : contract.status}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-gray-600 capitalize">
-                          {contract.type.replace(/_/g, " ")}
-                        </td>
-                        <td className="py-3 px-4 text-gray-600">
-                          {contract.department}
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-gray-400" />
-                            <div>
-                              <p className="font-medium">{contract.assignedTo?.name}</p>
-                              <p className="text-xs text-gray-500">{contract.assignedTo?.email}</p>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                            <td className="py-3 px-4">
+                              <Link 
+                                to={`/contracts/${contract.contractNumber}`}
+                                className="font-mono font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
+                              >
+                                {contract.contractNumber}
+                              </Link>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-2">
+                                <FileText className="h-4 w-4 text-gray-500" />
+                                <span className="font-medium text-gray-900">
+                                  {contract.title}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-4 text-gray-600">
+                              {contract.vendor}
+                            </td>
+                            <td className="py-3 px-4 text-gray-600">
+                              ${contract.amount.toLocaleString()}
+                            </td>
+                            <td className="py-3 px-4 text-gray-600">
+                              {new Date(contract.startDate).toLocaleDateString()}
+                            </td>
+                            <td className="py-3 px-4 text-gray-600">
+                              {new Date(contract.endDate).toLocaleDateString()}
+                            </td>
+                            <td className="py-3 px-4">
+                              <span
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium capitalize
+                                  ${getStatusColor(contract.status)}`}
+                              >
+                                {getStatusIcon(contract.status)}
+                                {contract.status === 'InSignature' ? 'In Signature' : contract.status}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-gray-600 capitalize">
+                              {contract.type.replace(/_/g, " ")}
+                            </td>
+                            <td className="py-3 px-4 text-gray-600">
+                              {contract.department}
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-2">
+                                <User className="h-4 w-4 text-gray-400" />
+                                <div>
+                                  <p className="text-sm text-gray-500">{contract.creatorEmail}</p>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                        {filteredContracts.length === 0 && (
+                          <tr>
+                            <td colSpan={10} className="text-center py-8 text-gray-500">
+                              No contracts found matching your filters.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
             </div>
           </Card>
         </div>
