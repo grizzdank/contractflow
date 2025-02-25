@@ -37,6 +37,10 @@ const ContractDetails = () => {
       if (error) throw error;
 
       if (data) {
+        // Type assertion to ensure status and type match the expected enum values
+        const status = data.status as Contract['status'];
+        const type = data.type as Contract['type'];
+
         setContract({
           id: data.id,
           contractNumber: data.contract_number,
@@ -46,8 +50,8 @@ const ContractDetails = () => {
           amount: data.amount,
           startDate: data.start_date,
           endDate: data.end_date,
-          status: data.status,
-          type: data.type,
+          status: status,
+          type: type,
           department: data.department,
           accountingCodes: data.accounting_codes,
           vendorEmail: data.vendor_email,
