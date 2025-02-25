@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import Navigation from "@/components/Navigation";
 import { COIFileUpload } from "@/components/COIFileUpload";
@@ -12,13 +11,18 @@ import { ContractAttachments } from "@/components/contract/ContractAttachments";
 import { ContractComments } from "@/components/contract/ContractComments";
 import { ContractExecutedDocument } from "@/components/contract/ContractExecutedDocument";
 import { ContractAuditTrail } from "@/components/contract/ContractAuditTrail";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 const ContractDetails = () => {
   const { contractNumber } = useParams();
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [coiFiles, setCoiFiles] = useState<any[]>([]);
   const [contract, setContract] = useState<Contract | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (contractNumber) {
@@ -28,46 +32,55 @@ const ContractDetails = () => {
 
   const loadContract = async () => {
     try {
+      setIsLoading(true);
+      setError(null);
+
       const { data, error } = await supabase
         .from('contracts')
         .select('*')
         .eq('contract_number', contractNumber)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
 
-      if (data) {
-        // Type assertion to ensure status and type match the expected enum values
-        const status = data.status as Contract['status'];
-        const type = data.type as Contract['type'];
-
-        setContract({
-          id: data.id,
-          contractNumber: data.contract_number,
-          title: data.title,
-          description: data.description,
-          vendor: data.vendor,
-          amount: data.amount,
-          startDate: data.start_date,
-          endDate: data.end_date,
-          status: status,
-          type: type,
-          department: data.department,
-          accountingCodes: data.accounting_codes,
-          vendorEmail: data.vendor_email,
-          vendorPhone: data.vendor_phone,
-          vendorAddress: data.vendor_address,
-          signatoryName: data.signatory_name,
-          signatoryEmail: data.signatory_email,
-          attachments: [],  // We'll need to implement attachment loading separately
-          comments: [],     // We'll need to implement comments loading separately
-          creatorEmail: data.creator_email,
-          creatorId: data.creator_id,
-          createdAt: data.created_at
-        });
+      if (!data) {
+        setError(`Contract ${contractNumber} not found`);
+        return;
       }
+
+      // Type assertion to ensure status and type match the expected enum values
+      const status = data.status as Contract['status'];
+      const type = data.type as Contract['type'];
+
+      setContract({
+        id: data.id,
+        contractNumber: data.contract_number,
+        title: data.title,
+        description: data.description,
+        vendor: data.vendor,
+        amount: data.amount,
+        startDate: data.start_date,
+        endDate: data.end_date,
+        status: status,
+        type: type,
+        department: data.department,
+        accountingCodes: data.accounting_codes,
+        vendorEmail: data.vendor_email,
+        vendorPhone: data.vendor_phone,
+        vendorAddress: data.vendor_address,
+        signatoryName: data.signatory_name,
+        signatoryEmail: data.signatory_email,
+        attachments: [],  // We'll need to implement attachment loading separately
+        comments: [],     // We'll need to implement comments loading separately
+        creatorEmail: data.creator_email,
+        creatorId: data.creator_id,
+        createdAt: data.created_at
+      });
     } catch (error) {
       console.error('Error loading contract:', error);
+      setError('Failed to load contract details');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -133,7 +146,7 @@ const ContractDetails = () => {
     }
   };
 
-  if (!contract) {
+  if (isLoading) {
     return (
       <>
         <Navigation />
@@ -144,6 +157,28 @@ const ContractDetails = () => {
         </div>
       </>
     );
+  }
+
+  if (error) {
+    return (
+      <>
+        <Navigation />
+        <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-orange-50 pt-16">
+          <div className="max-w-4xl mx-auto space-y-8 fade-in p-6">
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+            <Button onClick={() => navigate('/contracts')}>
+              Back to Contracts
+            </Button>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  if (!contract) {
+    return null;
   }
 
   return (
