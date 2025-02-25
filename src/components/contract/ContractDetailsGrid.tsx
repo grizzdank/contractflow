@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Building, Calendar, DollarSign, User, CheckCircle, Clock, Edit, FileText, Users } from "lucide-react";
@@ -5,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Contract } from "@/types/contract";
 
 interface ContractDetailsGridProps {
-  contract: Contract;
+  contract: Contract | null;
   isEditing: boolean;
   onContractChange: (updates: Partial<Contract>) => void;
 }
@@ -15,6 +16,11 @@ export function ContractDetailsGrid({
   isEditing,
   onContractChange,
 }: ContractDetailsGridProps) {
+  // Early return with loading state if contract is null
+  if (!contract) {
+    return <div>Loading contract details...</div>;
+  }
+
   const getStatusIcon = (status: Contract['status']) => {
     if (!status) return null;
     
