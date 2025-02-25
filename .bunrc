@@ -1,0 +1,12 @@
+{
+  "install": {
+    "exact": true,
+    "production": false,
+    "optional": false
+  },
+  "runtime": {
+    "env": {
+      "NODE_ENV": "development"
+    }
+  }
+} 

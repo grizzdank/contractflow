@@ -1,69 +1,90 @@
-# Welcome to your Lovable project
+# ContractFlow
 
-## Project info
+ContractFlow is a web-based platform built for small businesses to manage the entire lifecycle of their contracts. The platform simplifies daily operations by centralizing contract management, automating key reminders, and providing actionable insights to help users grow their business.
 
-**URL**: https://lovable.dev/projects/ba1152a4-f830-4fb2-aaa5-f64fff54730e
+## Project Overview
 
-## How can I edit this code?
+ContractFlow tackles the challenge of inconsistent contract handling and the risk of missed deadlines by offering a structured, role-based approach to contract management. The platform is designed to modernize contract workflows while ensuring data security and compliance.
 
-There are several ways of editing your application.
+## Key Features
 
-**Use Lovable**
+- **Role-Based Access Control:** Clear user roles with specific permissions
+- **Centralized Contract Database:** Searchable repository with filtering options
+- **Contract Lifecycle Management:** Creation, editing, approval workflows, and version tracking
+- **E-Signature Integration:** Seamless integration with multiple e-signature platforms
+- **Automated Reminders & Notifications:** Multi-channel notifications for important dates
+- **Reporting Tools:** Generate and export actionable insights
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/ba1152a4-f830-4fb2-aaa5-f64fff54730e) and start prompting.
+## Technologies Used
 
-Changes made via Lovable will be committed automatically to this repo.
+- **Vite:** Modern build tool for frontend development
+- **React:** Library for building user interfaces
+- **React Router:** Client-side routing for single-page applications
+- **TypeScript:** Strict type-checking for better code quality
+- **Tailwind CSS:** Utility-first CSS framework
+- **shadcn/UI & Radix UI:** Component libraries for consistent UI elements
+- **Supabase:** Backend-as-a-Service for database, authentication, and storage
+- **Bun:** Fast JavaScript runtime and package manager
 
-**Use your preferred IDE**
+## Getting Started
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Prerequisites
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- [Bun](https://bun.sh/) (v1.0.0 or higher)
 
-Follow these steps:
+### Installation
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# Clone the repository
+git clone https://github.com/yourusername/contractflow.git
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Navigate to the project directory
+cd contractflow
 
-# Step 3: Install the necessary dependencies.
-npm i
+# Install dependencies
+bun install
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your configuration
+
+# Start the development server
+bun run dev
 ```
 
-**Edit a file directly in GitHub**
+## Development
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```sh
+# Run development server
+bun run dev
 
-**Use GitHub Codespaces**
+# Build for production
+bun run build
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+# Preview production build
+bun run preview
 
-## What technologies are used for this project?
+# Lint code
+bun run lint
+```
 
-This project is built with .
+## Project Structure
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- `src/pages/`: React components that represent different pages/routes
+- `src/components/`: Reusable UI components
+- `src/integrations/`: Integration with external services like Supabase
+- `src/lib/`: Utility functions and helpers
+- `src/hooks/`: Custom React hooks
+- `src/types/`: TypeScript type definitions
 
-## How can I deploy this project?
+## Contributing
 
-Simply open [Lovable](https://lovable.dev/projects/ba1152a4-f830-4fb2-aaa5-f64fff54730e) and click on Share -> Publish.
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-## I want to use a custom domain - is that possible?
+## License
 
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+This project is licensed under the MIT License - see the LICENSE file for details.
