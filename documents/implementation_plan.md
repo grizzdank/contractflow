@@ -141,6 +141,95 @@ Below is the step-by-step implementation plan for ContractFlow structured into f
 
     *   Test each API endpoint and database operation to ensure correct behavior.
 
+## Phase 3.5: OAuth and Microsoft Authentication Integration
+
+1.  **Microsoft Entra ID (Azure AD) Application Setup:**
+
+    *   Register a new application in the Microsoft Entra admin center (https://entra.microsoft.com).
+    *   Configure the application with appropriate redirect URIs:
+        *   Production: `https://[your-supabase-project].supabase.co/auth/v1/callback`
+        *   Development: `http://localhost:8080/auth/callback`
+    *   Enable ID tokens and access tokens in the Authentication settings.
+    *   Add required Microsoft Graph API permissions:
+        *   User.Read (delegated)
+        *   email, profile, openid, offline_access
+    *   Generate a client secret and securely store it.
+
+2.  **Supabase OAuth Configuration:**
+
+    *   In the Supabase dashboard, navigate to Authentication → Providers → Microsoft.
+    *   Enable the Microsoft provider and configure it with:
+        *   Client ID from the Microsoft Entra ID application
+        *   Client Secret from the Microsoft Entra ID application
+        *   Redirect URL matching what was configured in Microsoft Entra ID
+    *   Configure additional scopes if needed (e.g., `offline_access` for refresh tokens).
+
+3.  **Auth Component Enhancement:**
+
+    *   Update `src/pages/Auth.tsx` to include Microsoft sign-in option:
+        *   Add Microsoft sign-in button with appropriate styling and icon.
+        *   Implement the `signInWithMicrosoft` function using Supabase's OAuth API.
+        *   Handle OAuth redirects and authentication state.
+
+4.  **Auth Callback Handler:**
+
+    *   Create `src/pages/AuthCallback.tsx` to handle OAuth redirects:
+        *   Implement logic to process the authentication response.
+        *   Handle success and error states appropriately.
+        *   Redirect users to the appropriate page after authentication.
+    *   Update routing in `src/App.tsx` to include the callback route.
+
+5.  **Token Management:**
+
+    *   Create `src/lib/auth/tokenManager.ts` to handle OAuth tokens:
+        *   Implement secure storage of access and refresh tokens.
+        *   Add functionality to refresh expired tokens.
+        *   Create utility functions to retrieve valid tokens for API calls.
+
+6.  **Microsoft Graph Integration:**
+
+    *   Create `src/lib/microsoft/graphClient.ts` to interact with Microsoft Graph API:
+        *   Implement functions to fetch user profile information.
+        *   Add methods to access organizational data if needed.
+        *   Handle authentication errors and token refreshing.
+
+7.  **User Profile Synchronization:**
+
+    *   Enhance user profile management to sync with Microsoft account data:
+        *   Update user profiles with information from Microsoft Graph.
+        *   Implement logic to handle profile picture synchronization.
+        *   Add department and organization information from Microsoft if available.
+
+8.  **Role Mapping:**
+
+    *   Create `src/lib/auth/roleMappings.ts` to map Microsoft groups to application roles:
+        *   Implement logic to extract group membership from tokens or Graph API.
+        *   Map Microsoft security groups to ContractFlow roles.
+        *   Update user permissions based on group membership.
+
+9.  **Single Sign-On Experience:**
+
+    *   Enhance the authentication flow for seamless SSO experience:
+        *   Implement silent authentication for returning users.
+        *   Add "Keep me signed in" option.
+        *   Create session persistence that respects Microsoft's token expiration policies.
+
+10. **Security Enhancements:**
+
+    *   Implement additional security measures for enterprise authentication:
+        *   Add token validation to verify authenticity.
+        *   Implement proper PKCE flow for public clients.
+        *   Add protection against CSRF attacks in the OAuth flow.
+        *   Set up proper CORS configuration for authentication endpoints.
+
+11. **Testing and Validation:**
+
+    *   Create comprehensive tests for the OAuth implementation:
+        *   Test the sign-in flow with Microsoft accounts.
+        *   Verify token refresh functionality.
+        *   Test role mapping and permissions.
+        *   Validate the security of the implementation.
+
 ## Phase 4: Integration
 
 1.  **Connect Supabase Auth with Frontend:**

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -51,12 +50,14 @@ const Index = () => {
                 gradientClass="from-teal-500 to-orange-400"
               />
             </Link>
-            <QuickActionCard
-              icon={<Bell className="h-6 w-6" />}
-              title="Notifications"
-              description="Stay updated with important contract deadlines"
-              gradientClass="from-orange-400 to-orange-500"
-            />
+            <Link to="/notifications">
+              <QuickActionCard
+                icon={<Bell className="h-6 w-6" />}
+                title="Notifications"
+                description="Stay updated with important contract deadlines"
+                gradientClass="from-orange-400 to-orange-500"
+              />
+            </Link>
           </div>
 
           {/* Get Started Section */}
@@ -68,7 +69,7 @@ const Index = () => {
               Join thousands of businesses managing their contracts efficiently.
             </p>
             <div className="flex justify-center gap-4">
-              <Link to="/request">
+              <Link to="/auth">
                 <Button size="lg" className="hover-effect bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700">
                   Create Account
                 </Button>

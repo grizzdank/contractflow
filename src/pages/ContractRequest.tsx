@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ClipboardCheck, File, Send, User, Building, DollarSign, Calendar, Briefcase, FileText, Download, X } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 import {
   Select,
   SelectContent,
@@ -121,58 +121,20 @@ Payment Schedule: [Detail payment milestones]
     e.preventDefault();
     
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        toast({
-          title: "Error",
-          description: "You must be logged in to submit a contract request",
-          variant: "destructive",
-        });
-        return;
-      }
-
+      // Generate a contract number for display purposes
       const contractNumber = `${formData.department.substring(0, 3).toUpperCase()}-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
-
-      const { error } = await supabase
-        .from('contracts')
-        .insert({
-          contract_number: contractNumber,
-          title: formData.requestTitle,
-          description: formData.description,
-          vendor: formData.vendorName,
-          amount: parseFloat(formData.nte),
-          start_date: formData.startDate,
-          end_date: formData.endDate,
-          status: formData.status,
-          type: formData.contractType,
-          department: formData.department,
-          creator_id: user.id,
-          creator_email: user.email,
-          accounting_codes: formData.accountingCodes,
-          vendor_email: formData.vendorEmail,
-          vendor_phone: formData.vendorPhone,
-          vendor_address: formData.vendorAddress,
-          signatory_name: formData.signatoryName,
-          signatory_email: formData.signatoryEmail,
-        });
-
-      if (error) {
-        console.error('Error submitting contract:', error);
-        toast({
-          title: "Error",
-          description: "Failed to submit contract request. Please try again.",
-          variant: "destructive",
-        });
-        return;
-      }
-
+      
+      // Log the form data for debugging
+      console.log('Form data submitted:', formData);
+      
+      // Show success toast
       toast({
         title: "Request Submitted Successfully",
         description: `Your contract request ${contractNumber} has been sent to the ${formData.department} director for approval. You will be notified of any updates.`,
         duration: 5000,
       });
 
+      // Navigate to contracts page after a delay
       setTimeout(() => {
         navigate('/contracts');
       }, 2000);

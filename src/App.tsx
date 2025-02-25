@@ -1,4 +1,3 @@
-
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -8,6 +7,7 @@ import ContractApproval from "./pages/ContractApproval";
 import ContractDetails from "./pages/ContractDetails";
 import Team from "./pages/Team";
 import NotFound from "./pages/NotFound";
+import Notifications from "./pages/Notifications";
 import "./App.css";
 
 function App() {
@@ -21,6 +21,7 @@ function App() {
         <Route path="/request" element={<ContractRequest />} />
         <Route path="/approval" element={<ContractApproval />} />
         <Route path="/team" element={<Team />} />
+        <Route path="/notifications" element={<Notifications />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
