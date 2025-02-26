@@ -3,7 +3,7 @@ import { supabase } from "./supabase/client";
 import { Contract } from "@/types/contract";
 
 // Toggle this flag to switch between mock and real data
-export const USE_MOCK_DATA = true;
+export const USE_MOCK_DATA = false;
 
 // Helper function to map database fields to Contract type
 const mapDbToContract = (data: any): Contract => {
@@ -35,15 +35,31 @@ const mapDbToContract = (data: any): Contract => {
 
 // Helper function to map Contract type to database fields
 const mapContractToDb = (contract: Contract): any => {
+  // Ensure dates are in the correct format for Supabase
+  const formatDate = (dateString: string) => {
+    try {
+      // Parse the date and return in ISO format
+      return new Date(dateString).toISOString();
+    } catch (e) {
+      console.error('Error formatting date:', dateString, e);
+      return dateString; // Return original if parsing fails
+    }
+  };
+
+  // Ensure amount is a number
+  const amount = typeof contract.amount === 'string' 
+    ? parseFloat(contract.amount as string) 
+    : contract.amount;
+
   return {
     id: contract.id,
     contract_number: contract.contractNumber,
     title: contract.title,
     description: contract.description,
     vendor: contract.vendor,
-    amount: contract.amount,
-    start_date: contract.startDate,
-    end_date: contract.endDate,
+    amount: amount,
+    start_date: formatDate(contract.startDate),
+    end_date: formatDate(contract.endDate),
     status: contract.status,
     type: contract.type,
     department: contract.department,
@@ -55,7 +71,7 @@ const mapContractToDb = (contract: Contract): any => {
     signatory_email: contract.signatoryEmail,
     creator_id: contract.creatorId,
     creator_email: contract.creatorEmail,
-    created_at: contract.createdAt
+    created_at: formatDate(contract.createdAt)
   };
 };
 
@@ -124,29 +140,47 @@ export const contractService = {
     
     // Map Contract type to database fields
     const dbContract = mapContractToDb(contract);
+    console.log('Mapped contract for DB:', dbContract);
     
-    // For new contracts
-    if (!contract.id) {
+    try {
+      // For new contracts
+      if (!contract.id) {
+        console.log('Inserting new contract into Supabase');
+        const { data, error } = await supabase
+          .from('contracts')
+          .insert(dbContract)
+          .select()
+          .single();
+        
+        console.log('Insert result:', data, 'Error:', error);
+        
+        if (error) {
+          console.error('Supabase insert error details:', JSON.stringify(error, null, 2));
+          return { data: null, error };
+        }
+        return { data: mapDbToContract(data), error: null };
+      }
+      
+      // For updating existing contracts
+      console.log('Updating existing contract in Supabase');
       const { data, error } = await supabase
         .from('contracts')
-        .insert(dbContract)
+        .update(dbContract)
+        .eq('id', contract.id)
         .select()
         .single();
       
-      if (error) return { data: null, error };
+      console.log('Update result:', data, 'Error:', error);
+      
+      if (error) {
+        console.error('Supabase update error details:', JSON.stringify(error, null, 2));
+        return { data: null, error };
+      }
       return { data: mapDbToContract(data), error: null };
+    } catch (err) {
+      console.error('Unexpected error in saveContract:', err);
+      return { data: null, error: err };
     }
-    
-    // For updating existing contracts
-    const { data, error } = await supabase
-      .from('contracts')
-      .update(dbContract)
-      .eq('id', contract.id)
-      .select()
-      .single();
-    
-    if (error) return { data: null, error };
-    return { data: mapDbToContract(data), error: null };
   },
   
   async getContractCOIFiles(contractId: string) {

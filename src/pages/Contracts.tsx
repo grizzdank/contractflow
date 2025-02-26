@@ -14,6 +14,8 @@ import { FileText, Search, Filter, CheckCircle, Clock, Edit, Users, User } from 
 import Navigation from "@/components/Navigation";
 import { Contract } from "@/types/contract";
 import { contractService } from "@/lib/dataService";
+import { toast } from "@/components/ui/use-toast";
+import { supabase } from "@/lib/supabase/client";
 
 const getContractSuffix = (type: Contract['type'], amendmentNumber?: string): string => {
   switch (type) {
@@ -51,10 +53,126 @@ const Contracts = () => {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isCreatingContract, setIsCreatingContract] = useState(false);
 
   useEffect(() => {
-    loadContracts();
+    const fetchContracts = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        console.log('Attempting to fetch contracts...');
+        const { data, error } = await contractService.getContracts();
+        console.log('Supabase connection test - Contracts data:', data, 'Error:', error);
+        
+        if (error) {
+          console.error('Error details:', JSON.stringify(error, null, 2));
+          console.error('Error code:', error.code);
+          console.error('Error message:', error.message);
+          console.error('Error hint:', error.hint);
+          throw error;
+        }
+        
+        setContracts(data || []);
+      } catch (error: any) {
+        console.error('Error fetching contracts:', error);
+        console.error('Error type:', typeof error);
+        console.error('Error properties:', Object.keys(error));
+        
+        if (error.code === '42501') {
+          setError('Permission denied. RLS policy is blocking access.');
+        } else {
+          setError('Failed to load contracts');
+        }
+        
+        toast({
+          title: "Error",
+          description: `Failed to load contracts: ${error.message || 'Unknown error'}`,
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchContracts();
   }, []);
+
+  const createTestContract = async () => {
+    try {
+      setIsCreatingContract(true);
+      console.log('Creating test contract...');
+      
+      // Generate a random contract number with prefix CF and 6 digits
+      const contractNumber = `CF${Math.floor(100000 + Math.random() * 900000)}`;
+      
+      // Format dates as YYYY-MM-DD for the date type in Postgres
+      const today = new Date();
+      const nextYear = new Date();
+      nextYear.setFullYear(today.getFullYear() + 1);
+      
+      const formattedStartDate = today.toISOString().split('T')[0];
+      const formattedEndDate = nextYear.toISOString().split('T')[0];
+      
+      // Use snake_case for database column names and ensure all required fields are provided
+      const testContract = {
+        contract_number: contractNumber,
+        title: "Test Contract",
+        vendor: "Test Vendor Inc.",
+        amount: 10000,
+        start_date: formattedStartDate,
+        end_date: formattedEndDate,
+        status: "Draft",
+        type: "services",
+        department: "IT",
+        creator_id: null, // Set to null to work with anonymous policy
+        creator_email: "test@example.com",
+        description: "This is a test contract created for testing purposes.",
+      };
+      
+      console.log('Test contract data:', testContract);
+      
+      const { data, error } = await supabase
+        .from('contracts')
+        .insert(testContract)
+        .select()
+        .single();
+      
+      console.log('Insert response:', { data, error });
+      
+      if (error) {
+        console.error('Error details:', JSON.stringify(error, null, 2));
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
+        console.error('Error hint:', error.hint);
+        throw error;
+      }
+      
+      toast({
+        title: "Success",
+        description: `Test contract ${contractNumber} created successfully!`,
+      });
+      
+      // Refresh the contracts list
+      loadContracts();
+    } catch (error: any) {
+      console.error('Error creating test contract:', error);
+      
+      let errorMessage = 'Failed to create test contract';
+      if (error.code === '42501') {
+        errorMessage = 'Permission denied. RLS policy is blocking the insert operation.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingContract(false);
+    }
+  };
 
   const loadContracts = async () => {
     try {
@@ -138,6 +256,22 @@ const Contracts = () => {
             <p className="text-gray-600 max-w-2xl mx-auto">
               Monitor and manage your ongoing contracts in one place.
             </p>
+            <div className="mt-4 flex justify-center gap-4">
+              <Button 
+                onClick={createTestContract} 
+                disabled={isCreatingContract}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                {isCreatingContract ? "Creating..." : "Create Test Contract"}
+              </Button>
+              <Link to="/request">
+                <Button 
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  Request New Contract
+                </Button>
+              </Link>
+            </div>
           </header>
 
           <Card className="p-6">
