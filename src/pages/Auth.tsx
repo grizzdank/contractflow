@@ -17,8 +17,18 @@ const Auth = () => {
   const [fullName, setFullName] = useState("");
   const [organizationName, setOrganizationName] = useState("");
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Handle typing state for squid animation
+  const handleInputChange = (setter: React.Dispatch<React.SetStateAction<string>>, value: string) => {
+    setter(value);
+    setIsTyping(true);
+    
+    // Reset typing animation after a short delay
+    setTimeout(() => setIsTyping(false), 500);
+  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,7 +86,12 @@ const Auth = () => {
           <Card>
             <CardHeader className="relative">
               <div className="absolute top-26 right-[34px] z-50">
-                <Squid isPasswordFocused={isPasswordFocused} />
+                <Squid 
+                  isPasswordFocused={isPasswordFocused} 
+                  isTyping={isTyping}
+                  size="md"
+                  color="teal"
+                />
               </div>
               <CardTitle>{isSignUp ? "Create an account" : "Welcome back"}</CardTitle>
               <CardDescription>
@@ -95,7 +110,7 @@ const Auth = () => {
                         id="fullName"
                         placeholder="John Doe"
                         value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
+                        onChange={(e) => handleInputChange(setFullName, e.target.value)}
                         required
                       />
                     </div>
@@ -105,7 +120,7 @@ const Auth = () => {
                         id="organizationName"
                         placeholder="Acme Inc"
                         value={organizationName}
-                        onChange={(e) => setOrganizationName(e.target.value)}
+                        onChange={(e) => handleInputChange(setOrganizationName, e.target.value)}
                         required
                       />
                     </div>
@@ -118,7 +133,7 @@ const Auth = () => {
                     type="email"
                     placeholder="name@company.com"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => handleInputChange(setEmail, e.target.value)}
                     required
                   />
                 </div>
@@ -129,7 +144,7 @@ const Auth = () => {
                     type="password"
                     placeholder="••••••••"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => handleInputChange(setPassword, e.target.value)}
                     onFocus={() => setIsPasswordFocused(true)}
                     onBlur={() => setIsPasswordFocused(false)}
                     required
