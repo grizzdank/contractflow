@@ -59,6 +59,8 @@ export class AuthService {
           data: {
             first_name: firstName,
             last_name: lastName,
+            full_name: fullName,
+            organization_name: organizationName,
           },
         },
       });
@@ -74,78 +76,18 @@ export class AuthService {
       }
       
       this.log('Auth user created successfully', { userId: authData.user.id });
-
-      // 2. Create organization if name is provided
-      let organizationId: string | undefined;
       
-      if (organizationName) {
-        this.log(`Creating organization: ${organizationName}`);
-        const { data: orgData, error: orgError } = await supabase
-          .from('organizations')
-          .insert([{ name: organizationName }])
-          .select('id')
-          .single();
-
-        if (orgError) {
-          this.logError('Organization creation failed', orgError);
-          throw orgError;
-        }
-        
-        organizationId = orgData.id;
-        this.log('Organization created successfully', { organizationId });
-      }
-
-      // 3. Create profile with default role
-      this.log('Creating user profile');
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .insert([
-          {
-            id: authData.user.id,
-            email: email,
-            full_name: fullName,
-            organization_id: organizationId,
-          },
-        ])
-        .select()
-        .single();
-
-      if (profileError) {
-        this.logError('Profile creation failed', profileError);
-        throw profileError;
-      }
+      // Store user metadata for later use after email verification
+      // The profile and organization will be created when the user confirms their email
+      // and signs in for the first time
       
-      this.log('Profile created successfully', { profileId: profileData.id });
-
-      // 4. If organization was created, add user as admin member
-      if (organizationId) {
-        this.log('Adding user as organization admin');
-        const { error: memberError } = await supabase
-          .from('organization_members')
-          .insert([
-            {
-              user_id: authData.user.id,
-              organization_id: organizationId,
-              role: 'admin', // Default to admin for the creator
-            },
-          ]);
-
-        if (memberError) {
-          this.logError('Adding user as organization admin failed', memberError);
-          throw memberError;
-        }
-        
-        this.log('User added as organization admin successfully');
-      }
-
-      // 5. Format and return the user
+      // Format and return the user
       const user: User = {
         id: authData.user.id,
         email: authData.user.email || '',
         firstName,
         lastName,
         role: UserRole.ADMINISTRATOR, // Default role for new users
-        organizationId,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -187,7 +129,93 @@ export class AuthService {
       
       this.log('Authentication successful', { userId: authData.user.id });
 
-      // 2. Get the user's profile
+      // 2. Check if profile exists, if not create it (first-time sign-in after email verification)
+      this.log('Checking if user profile exists');
+      const { data: existingProfile, error: profileCheckError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authData.user.id)
+        .single();
+        
+      if (profileCheckError && profileCheckError.code !== 'PGRST116') { // PGRST116 is "no rows returned" error
+        this.logError('Error checking for existing profile', profileCheckError);
+        throw profileCheckError;
+      }
+      
+      // If profile doesn't exist, create it along with organization if needed
+      if (!existingProfile) {
+        this.log('First-time sign-in detected, creating profile and organization');
+        
+        // Get user metadata from auth user
+        const userData = authData.user.user_metadata;
+        const fullName = userData.full_name;
+        const organizationName = userData.organization_name;
+        
+        this.log('Retrieved user metadata', { fullName, organizationName });
+        
+        // Create organization if name was provided during signup
+        let organizationId: string | undefined;
+        
+        if (organizationName) {
+          this.log(`Creating organization: ${organizationName}`);
+          const { data: orgData, error: orgError } = await supabase
+            .from('organizations')
+            .insert([{ name: organizationName }])
+            .select('id')
+            .single();
+
+          if (orgError) {
+            this.logError('Organization creation failed', orgError);
+            throw orgError;
+          }
+          
+          organizationId = orgData.id;
+          this.log('Organization created successfully', { organizationId });
+          
+          // Add user as organization admin
+          this.log('Adding user as organization admin');
+          const { error: memberError } = await supabase
+            .from('organization_members')
+            .insert([
+              {
+                user_id: authData.user.id,
+                organization_id: organizationId,
+                role: 'admin', // Default to admin for the creator
+              },
+            ]);
+
+          if (memberError) {
+            this.logError('Adding user as organization admin failed', memberError);
+            throw memberError;
+          }
+          
+          this.log('User added as organization admin successfully');
+        }
+        
+        // Create profile
+        this.log('Creating user profile');
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .insert([
+            {
+              id: authData.user.id,
+              email: email,
+              full_name: fullName,
+              organization_id: organizationId,
+            },
+          ])
+          .select()
+          .single();
+
+        if (profileError) {
+          this.logError('Profile creation failed', profileError);
+          throw profileError;
+        }
+        
+        this.log('Profile created successfully', { profileId: profileData.id });
+      }
+
+      // 3. Get the user's profile
       this.log('Fetching user profile');
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
@@ -205,7 +233,7 @@ export class AuthService {
         organizationId: profileData.organization_id 
       });
 
-      // 3. Get the user's role from organization_members
+      // 4. Get the user's role from organization_members
       this.log('Fetching user role');
       const { data: memberData, error: memberError } = await supabase
         .from('organization_members')
@@ -222,7 +250,7 @@ export class AuthService {
         this.log('User role fetched successfully', { role: memberData.role });
       }
 
-      // 4. Parse full name into first and last name
+      // 5. Parse full name into first and last name
       let firstName: string | undefined;
       let lastName: string | undefined;
       
@@ -233,7 +261,7 @@ export class AuthService {
         this.log(`Parsed name: firstName=${firstName}, lastName=${lastName}`);
       }
 
-      // 5. Format and return the user and session
+      // 6. Format and return the user and session
       const user: User = {
         id: authData.user.id,
         email: authData.user.email || '',
