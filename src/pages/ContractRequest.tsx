@@ -124,19 +124,16 @@ Payment Schedule: [Detail payment milestones]
       // Generate a contract number for display purposes
       const contractNumber = `${formData.department.substring(0, 3).toUpperCase()}-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
       
-      // Log the form data for debugging
-      console.log('Form data submitted:', formData);
-      
-      // Show success toast
+      // Show success toast for demo purposes
       toast({
-        title: "Request Submitted Successfully",
-        description: `Your contract request ${contractNumber} has been sent to the ${formData.department} director for approval. You will be notified of any updates.`,
+        title: "Demo Mode: Request Received",
+        description: `This is a demo. In the full version, your contract request ${contractNumber} would be sent to the ${formData.department} director for approval.`,
         duration: 5000,
       });
 
       // Navigate to contracts page after a delay
       setTimeout(() => {
-        navigate('/contracts');
+        navigate('/demo/contracts');
       }, 2000);
 
     } catch (error) {
@@ -156,13 +153,13 @@ Payment Schedule: [Detail payment milestones]
         <div className="max-w-3xl mx-auto space-y-8 fade-in p-6">
           <header className="text-center space-y-4">
             <div className="inline-block px-4 py-1 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-full text-sm font-medium">
-              New Contract Request
+              Demo: New Contract Request
             </div>
             <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-emerald-700 to-orange-600 bg-clip-text text-transparent">
               Submit a Contract Request
             </h1>
             <p className="text-gray-600">
-              Fill out the form below to submit a new contract request. Please ensure all required information is provided.
+              This is a demo of the contract request form. You can fill it out and submit, but no data will be saved.
             </p>
           </header>
 

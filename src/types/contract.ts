@@ -1,4 +1,3 @@
-
 export interface Comment {
   id: string;
   userId: string;
@@ -17,7 +16,7 @@ export interface Contract {
   startDate: string;
   endDate: string;
   status: "Requested" | "Draft" | "Review" | "InSignature" | "ExecutedActive" | "ExecutedExpired";
-  type: "grant" | "services" | "goods" | "sponsorship" | "amendment" | "vendor_agreement" | "interagency_agreement" | "mou" | "sole_source" | "rfp";
+  type: "service" | "product" | "license" | "nda" | "mou" | "iaa" | "sponsorship" | "employment" | "vendor" | "other";
   department: string;
   assignedTo?: {
     name: string;

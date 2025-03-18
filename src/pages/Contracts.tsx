@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,183 +13,162 @@ import {
 import { FileText, Search, Filter, CheckCircle, Clock, Edit, Users, User } from "lucide-react";
 import Navigation from "@/components/Navigation";
 import { Contract } from "@/types/contract";
-import { contractService } from "@/lib/dataService";
 import { toast } from "@/components/ui/use-toast";
-import { supabase } from "@/lib/supabase/client";
+
+// Mock data for demo
+const MOCK_CONTRACTS: Contract[] = [
+  {
+    id: "1",
+    contractNumber: "CF100001",
+    title: "Website Development Agreement",
+    vendor: "TechCorp Solutions",
+    vendorEmail: "contact@techcorp.com",
+    vendorPhone: "555-0123",
+    vendorAddress: "123 Tech Street, San Francisco, CA 94105",
+    amount: 25000,
+    startDate: "2024-03-01",
+    endDate: "2024-12-31",
+    status: "ExecutedActive",
+    type: "service",
+    department: "IT",
+    description: "Development of company website and CMS",
+    accountingCodes: "IT-DEV-2024",
+    creatorEmail: "admin@contractflow.com",
+    creatorId: "demo-creator-1",
+    attachments: [],
+    signatoryName: "John Smith",
+    signatoryEmail: "john.smith@techcorp.com",
+    comments: [{
+      id: "c1",
+      userId: "demo-creator-1",
+      userName: "Admin User",
+      content: "Standard website development agreement",
+      timestamp: "2024-03-01T09:00:00Z"
+    }]
+  },
+  {
+    id: "2",
+    contractNumber: "CF100002",
+    title: "Office Supplies Agreement",
+    vendor: "Office Depot",
+    vendorEmail: "b2b@officedepot.com",
+    vendorPhone: "555-0456",
+    vendorAddress: "456 Supply Drive, Chicago, IL 60601",
+    amount: 5000,
+    startDate: "2024-01-01",
+    endDate: "2024-12-31",
+    status: "ExecutedActive",
+    type: "product",
+    department: "Operations",
+    description: "Annual office supplies contract",
+    accountingCodes: "OPS-SUP-2024",
+    creatorEmail: "admin@contractflow.com",
+    creatorId: "demo-creator-1",
+    attachments: [],
+    signatoryName: "Sarah Johnson",
+    signatoryEmail: "sarah.johnson@officedepot.com",
+    comments: [{
+      id: "c2",
+      userId: "demo-creator-1",
+      userName: "Admin User",
+      content: "Annual renewal with standard terms",
+      timestamp: "2024-01-01T10:00:00Z"
+    }]
+  },
+  {
+    id: "3",
+    contractNumber: "CF100003",
+    title: "Marketing Consultation",
+    vendor: "Brand Builders Inc",
+    vendorEmail: "projects@brandbuilders.com",
+    vendorPhone: "555-0789",
+    vendorAddress: "789 Marketing Ave, New York, NY 10001",
+    amount: 15000,
+    startDate: "2024-02-01",
+    endDate: "2024-07-31",
+    status: "Review",
+    type: "service",
+    department: "Marketing",
+    description: "Brand strategy consultation",
+    accountingCodes: "MKT-CON-2024",
+    creatorEmail: "admin@contractflow.com",
+    creatorId: "demo-creator-1",
+    attachments: [],
+    signatoryName: "Michael Chen",
+    signatoryEmail: "m.chen@brandbuilders.com",
+    comments: [{
+      id: "c3",
+      userId: "demo-creator-1",
+      userName: "Admin User",
+      content: "Pending legal review of scope changes",
+      timestamp: "2024-02-15T14:30:00Z"
+    }]
+  },
+  {
+    id: "4",
+    contractNumber: "CF100004",
+    title: "Software License Agreement",
+    vendor: "CloudTech Services",
+    vendorEmail: "licenses@cloudtech.com",
+    vendorPhone: "555-0321",
+    vendorAddress: "321 Cloud Lane, Seattle, WA 98101",
+    amount: 8000,
+    startDate: "2024-01-15",
+    endDate: "2025-01-14",
+    status: "Draft",
+    type: "license",
+    department: "IT",
+    description: "Annual cloud software subscription",
+    accountingCodes: "IT-SW-2024",
+    creatorEmail: "admin@contractflow.com",
+    creatorId: "demo-creator-1",
+    attachments: [],
+    signatoryName: "Lisa Park",
+    signatoryEmail: "l.park@cloudtech.com",
+    comments: [{
+      id: "c4",
+      userId: "demo-creator-1",
+      userName: "Admin User",
+      content: "Initial draft under internal review",
+      timestamp: "2024-01-15T11:45:00Z"
+    }]
+  },
+];
 
 const getContractSuffix = (type: Contract['type'], amendmentNumber?: string): string => {
   switch (type) {
-    case 'services':
-    case 'goods':
+    case 'service':
+    case 'product':
       return 'PSA';
-    case 'grant':
-      return 'GR';
-    case 'sponsorship':
-      return 'SP';
-    case 'amendment':
-      return `Amnd${amendmentNumber || '01'}`;
-    case 'vendor_agreement':
-      return 'VA';
-    case 'interagency_agreement':
-      return 'IAA';
+    case 'license':
+      return 'LIC';
+    case 'nda':
+      return 'NDA';
     case 'mou':
       return 'MOU';
-    case 'sole_source':
-      return 'SS';
-    case 'rfp':
-      return 'RFP';
+    case 'iaa':
+      return 'IAA';
+    case 'sponsorship':
+      return 'SP';
+    case 'employment':
+      return 'EMP';
+    case 'vendor':
+      return 'VEN';
+    case 'other':
+      return 'GEN';
     default:
       return 'PSA';
   }
 };
 
 const Contracts = () => {
+  const navigate = useNavigate();
   const [filters, setFilters] = useState({
     search: "",
     status: "all",
     type: "all",
     department: "all",
   });
-  const [contracts, setContracts] = useState<Contract[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isCreatingContract, setIsCreatingContract] = useState(false);
-
-  useEffect(() => {
-    const fetchContracts = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        console.log('Attempting to fetch contracts...');
-        const { data, error } = await contractService.getContracts();
-        console.log('Supabase connection test - Contracts data:', data, 'Error:', error);
-        
-        if (error) {
-          console.error('Error details:', JSON.stringify(error, null, 2));
-          console.error('Error code:', error.code);
-          console.error('Error message:', error.message);
-          console.error('Error hint:', error.hint);
-          throw error;
-        }
-        
-        setContracts(data || []);
-      } catch (error: any) {
-        console.error('Error fetching contracts:', error);
-        console.error('Error type:', typeof error);
-        console.error('Error properties:', Object.keys(error));
-        
-        if (error.code === '42501') {
-          setError('Permission denied. RLS policy is blocking access.');
-        } else {
-          setError('Failed to load contracts');
-        }
-        
-        toast({
-          title: "Error",
-          description: `Failed to load contracts: ${error.message || 'Unknown error'}`,
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchContracts();
-  }, []);
-
-  const createTestContract = async () => {
-    try {
-      setIsCreatingContract(true);
-      console.log('Creating test contract...');
-      
-      // Generate a random contract number with prefix CF and 6 digits
-      const contractNumber = `CF${Math.floor(100000 + Math.random() * 900000)}`;
-      
-      // Format dates as YYYY-MM-DD for the date type in Postgres
-      const today = new Date();
-      const nextYear = new Date();
-      nextYear.setFullYear(today.getFullYear() + 1);
-      
-      const formattedStartDate = today.toISOString().split('T')[0];
-      const formattedEndDate = nextYear.toISOString().split('T')[0];
-      
-      // Use snake_case for database column names and ensure all required fields are provided
-      const testContract = {
-        contract_number: contractNumber,
-        title: "Test Contract",
-        vendor: "Test Vendor Inc.",
-        amount: 10000,
-        start_date: formattedStartDate,
-        end_date: formattedEndDate,
-        status: "Draft",
-        type: "services",
-        department: "IT",
-        creator_id: null, // Set to null to work with anonymous policy
-        creator_email: "test@example.com",
-        description: "This is a test contract created for testing purposes.",
-      };
-      
-      console.log('Test contract data:', testContract);
-      
-      const { data, error } = await supabase
-        .from('contracts')
-        .insert(testContract)
-        .select()
-        .single();
-      
-      console.log('Insert response:', { data, error });
-      
-      if (error) {
-        console.error('Error details:', JSON.stringify(error, null, 2));
-        console.error('Error code:', error.code);
-        console.error('Error message:', error.message);
-        console.error('Error hint:', error.hint);
-        throw error;
-      }
-      
-      toast({
-        title: "Success",
-        description: `Test contract ${contractNumber} created successfully!`,
-      });
-      
-      // Refresh the contracts list
-      loadContracts();
-    } catch (error: any) {
-      console.error('Error creating test contract:', error);
-      
-      let errorMessage = 'Failed to create test contract';
-      if (error.code === '42501') {
-        errorMessage = 'Permission denied. RLS policy is blocking the insert operation.';
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    } finally {
-      setIsCreatingContract(false);
-    }
-  };
-
-  const loadContracts = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const { data, error } = await contractService.getContracts();
-      
-      if (error) throw error;
-      setContracts(data || []);
-    } catch (err) {
-      console.error('Error loading contracts:', err);
-      setError('Failed to load contracts');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const getStatusIcon = (status: Contract['status']) => {
     switch (status) {
@@ -229,7 +208,7 @@ const Contracts = () => {
     }
   };
 
-  const filteredContracts = contracts.filter((contract) => {
+  const filteredContracts = MOCK_CONTRACTS.filter((contract) => {
     return (
       (filters.search === "" ||
         contract.title.toLowerCase().includes(filters.search.toLowerCase()) ||
@@ -240,6 +219,10 @@ const Contracts = () => {
       (filters.department === "all" || contract.department === filters.department)
     );
   });
+
+  const handleRowClick = (contractNumber: string) => {
+    navigate(`/demo/contracts/${contractNumber}`);
+  };
 
   return (
     <>
@@ -257,14 +240,7 @@ const Contracts = () => {
               Monitor and manage your ongoing contracts in one place.
             </p>
             <div className="mt-4 flex justify-center gap-4">
-              <Button 
-                onClick={createTestContract} 
-                disabled={isCreatingContract}
-                className="bg-emerald-600 hover:bg-emerald-700"
-              >
-                {isCreatingContract ? "Creating..." : "Create Test Contract"}
-              </Button>
-              <Link to="/request">
+              <Link to="/demo/contract-request">
                 <Button 
                   className="bg-blue-600 hover:bg-blue-700"
                 >
@@ -276,181 +252,154 @@ const Contracts = () => {
 
           <Card className="p-6">
             <div className="space-y-4">
-              {error && (
-                <div className="bg-red-50 text-red-600 p-4 rounded-md">
-                  {error}
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
+                  <Input
+                    placeholder="Search contracts..."
+                    value={filters.search}
+                    onChange={(e) =>
+                      setFilters({ ...filters, search: e.target.value })
+                    }
+                    className="pl-10"
+                  />
                 </div>
-              )}
+                <div className="flex gap-4 flex-wrap sm:flex-nowrap">
+                  <Select
+                    value={filters.status}
+                    onValueChange={(value) =>
+                      setFilters({ ...filters, status: value })
+                    }
+                  >
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="Requested">Requested</SelectItem>
+                      <SelectItem value="Draft">Draft</SelectItem>
+                      <SelectItem value="Review">Review</SelectItem>
+                      <SelectItem value="InSignature">In Signature</SelectItem>
+                      <SelectItem value="ExecutedActive">Active</SelectItem>
+                      <SelectItem value="ExecutedExpired">Expired</SelectItem>
+                    </SelectContent>
+                  </Select>
 
-              {isLoading ? (
-                <div className="text-center py-8 text-gray-500">
-                  Loading contracts...
+                  <Select
+                    value={filters.type}
+                    onValueChange={(value) =>
+                      setFilters({ ...filters, type: value })
+                    }
+                  >
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue placeholder="Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="service">Services</SelectItem>
+                      <SelectItem value="product">Products</SelectItem>
+                      <SelectItem value="license">License</SelectItem>
+                      <SelectItem value="nda">NDA</SelectItem>
+                      <SelectItem value="employment">Employment</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select
+                    value={filters.department}
+                    onValueChange={(value) =>
+                      setFilters({ ...filters, department: value })
+                    }
+                  >
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue placeholder="Department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Departments</SelectItem>
+                      <SelectItem value="IT">IT</SelectItem>
+                      <SelectItem value="Marketing">Marketing</SelectItem>
+                      <SelectItem value="Operations">Operations</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              ) : (
-                <>
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
-                      <Input
-                        placeholder="Search contracts..."
-                        value={filters.search}
-                        onChange={(e) =>
-                          setFilters({ ...filters, search: e.target.value })
-                        }
-                        className="pl-10"
-                      />
-                    </div>
-                    <div className="flex gap-4 flex-wrap sm:flex-nowrap">
-                      <Select
-                        value={filters.status}
-                        onValueChange={(value) =>
-                          setFilters({ ...filters, status: value })
-                        }
-                      >
-                        <SelectTrigger className="w-[140px]">
-                          <SelectValue placeholder="Status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Status</SelectItem>
-                          <SelectItem value="Requested">Requested</SelectItem>
-                          <SelectItem value="Draft">Draft</SelectItem>
-                          <SelectItem value="Review">Review</SelectItem>
-                          <SelectItem value="InSignature">In Signature</SelectItem>
-                          <SelectItem value="ExecutedActive">Active</SelectItem>
-                          <SelectItem value="ExecutedExpired">Expired</SelectItem>
-                        </SelectContent>
-                      </Select>
+              </div>
 
-                      <Select
-                        value={filters.type}
-                        onValueChange={(value) =>
-                          setFilters({ ...filters, type: value })
-                        }
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Contract Number</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Contract</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Vendor</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Amount</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Start Date</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">End Date</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Type</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Department</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredContracts.map((contract) => (
+                      <tr
+                        key={contract.id}
+                        className="border-b hover:bg-gray-50/50 transition-colors cursor-pointer"
+                        onClick={() => handleRowClick(contract.contractNumber)}
                       >
-                        <SelectTrigger className="w-[140px]">
-                          <SelectValue placeholder="Type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Types</SelectItem>
-                          <SelectItem value="grant">Grant</SelectItem>
-                          <SelectItem value="services">Services</SelectItem>
-                          <SelectItem value="goods">Goods</SelectItem>
-                          <SelectItem value="sponsorship">Sponsorship</SelectItem>
-                          <SelectItem value="amendment">Amendment</SelectItem>
-                          <SelectItem value="vendor_agreement">Vendor Agreement</SelectItem>
-                          <SelectItem value="interagency_agreement">InterAgency Agreement</SelectItem>
-                          <SelectItem value="mou">MOU</SelectItem>
-                          <SelectItem value="sole_source">Sole/Single Source</SelectItem>
-                          <SelectItem value="rfp">RFP</SelectItem>
-                        </SelectContent>
-                      </Select>
-
-                      <Select
-                        value={filters.department}
-                        onValueChange={(value) =>
-                          setFilters({ ...filters, department: value })
-                        }
-                      >
-                        <SelectTrigger className="w-[140px]">
-                          <SelectValue placeholder="Department" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Departments</SelectItem>
-                          <SelectItem value="IT">IT</SelectItem>
-                          <SelectItem value="Marketing">Marketing</SelectItem>
-                          <SelectItem value="Sales">Sales</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left py-3 px-4 font-medium text-gray-600">Contract Number</th>
-                          <th className="text-left py-3 px-4 font-medium text-gray-600">Contract</th>
-                          <th className="text-left py-3 px-4 font-medium text-gray-600">Vendor</th>
-                          <th className="text-left py-3 px-4 font-medium text-gray-600">Amount</th>
-                          <th className="text-left py-3 px-4 font-medium text-gray-600">Start Date</th>
-                          <th className="text-left py-3 px-4 font-medium text-gray-600">End Date</th>
-                          <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
-                          <th className="text-left py-3 px-4 font-medium text-gray-600">Type</th>
-                          <th className="text-left py-3 px-4 font-medium text-gray-600">Department</th>
-                          <th className="text-left py-3 px-4 font-medium text-gray-600">Created By</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredContracts.map((contract) => (
-                          <tr
-                            key={contract.id}
-                            className="border-b hover:bg-gray-50/50 transition-colors"
+                        <td className="py-3 px-4">
+                          <span className="font-mono font-medium text-emerald-600 hover:text-emerald-700 transition-colors">
+                            {contract.contractNumber}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-gray-500" />
+                            <span className="font-medium text-gray-900">
+                              {contract.title}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-gray-600">
+                          {contract.vendor}
+                        </td>
+                        <td className="py-3 px-4 text-gray-600">
+                          ${contract.amount.toLocaleString()}
+                        </td>
+                        <td className="py-3 px-4 text-gray-600">
+                          {new Date(contract.startDate).toLocaleDateString()}
+                        </td>
+                        <td className="py-3 px-4 text-gray-600">
+                          {new Date(contract.endDate).toLocaleDateString()}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium
+                              ${getStatusColor(contract.status)}`}
                           >
-                            <td className="py-3 px-4">
-                              <Link 
-                                to={`/contracts/${contract.contractNumber}`}
-                                className="font-mono font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
-                              >
-                                {contract.contractNumber}
-                              </Link>
-                            </td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-2">
-                                <FileText className="h-4 w-4 text-gray-500" />
-                                <span className="font-medium text-gray-900">
-                                  {contract.title}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4 text-gray-600">
-                              {contract.vendor}
-                            </td>
-                            <td className="py-3 px-4 text-gray-600">
-                              ${contract.amount.toLocaleString()}
-                            </td>
-                            <td className="py-3 px-4 text-gray-600">
-                              {new Date(contract.startDate).toLocaleDateString()}
-                            </td>
-                            <td className="py-3 px-4 text-gray-600">
-                              {new Date(contract.endDate).toLocaleDateString()}
-                            </td>
-                            <td className="py-3 px-4">
-                              <span
-                                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium capitalize
-                                  ${getStatusColor(contract.status)}`}
-                              >
-                                {getStatusIcon(contract.status)}
-                                {contract.status === 'InSignature' ? 'In Signature' : contract.status}
-                              </span>
-                            </td>
-                            <td className="py-3 px-4 text-gray-600 capitalize">
-                              {contract.type.replace(/_/g, " ")}
-                            </td>
-                            <td className="py-3 px-4 text-gray-600">
-                              {contract.department}
-                            </td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-2">
-                                <User className="h-4 w-4 text-gray-400" />
-                                <div>
-                                  <p className="text-sm text-gray-500">{contract.creatorEmail}</p>
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                        {filteredContracts.length === 0 && (
-                          <tr>
-                            <td colSpan={10} className="text-center py-8 text-gray-500">
-                              No contracts found matching your filters.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </>
-              )}
+                            {getStatusIcon(contract.status)}
+                            {contract.status === 'InSignature' ? 'In Signature' : 
+                              contract.status === 'ExecutedActive' ? 'Active' : 
+                              contract.status === 'ExecutedExpired' ? 'Expired' : 
+                              contract.status}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-gray-600 capitalize">
+                          {contract.type.replace(/_/g, " ")}
+                        </td>
+                        <td className="py-3 px-4 text-gray-600">
+                          {contract.department}
+                        </td>
+                      </tr>
+                    ))}
+                    {filteredContracts.length === 0 && (
+                      <tr>
+                        <td colSpan={9} className="text-center py-8 text-gray-500">
+                          No contracts found matching your filters.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </Card>
         </div>
