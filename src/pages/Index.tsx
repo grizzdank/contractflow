@@ -6,7 +6,7 @@ import { GanttChartSquare, Users2, Bell, Calendar, ArrowRight } from "lucide-rea
 import { Link } from "react-router-dom";
 import Navigation from "@/components/Navigation";
 import { toast } from "@/components/ui/use-toast";
-// import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 
 const Index = () => {
   const [email, setEmail] = useState("");
@@ -18,16 +18,14 @@ const Index = () => {
     setIsSubmitting(true);
 
     try {
-      // Mock a successful submission for demo purposes
-      // const { data, error } = await supabase
-      //   .from('waitlist')
-      //   .insert([{ email, company_name: companyName }])
-      //   .select();
+      const { error } = await supabase
+        .from('waitlist')
+        .insert([{ 
+          email, 
+          company_name: companyName 
+        }]);
 
-      // if (error) throw error;
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 800));
+      if (error) throw error;
 
       toast({
         title: "Success!",
@@ -37,6 +35,7 @@ const Index = () => {
       setEmail("");
       setCompanyName("");
     } catch (error: any) {
+      console.error('Waitlist submission error:', error);
       toast({
         title: "Error",
         description: error.message || "Something went wrong. Please try again.",
