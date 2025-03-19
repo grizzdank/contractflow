@@ -50,7 +50,7 @@ const Pricing = () => {
               Simple, Transparent Pricing
             </h1>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Start with a 14-day free trial. No credit card required.
+              Start with a 14-day free trial.
             </p>
             <div className="inline-flex items-center space-x-2 bg-green-50 px-4 py-2 rounded-full">
               <span className="text-sm font-medium text-green-800">Save 20% with annual billing</span>
@@ -153,7 +153,7 @@ const Pricing = () => {
                 },
                 {
                   q: "What happens after my free trial?",
-                  a: "After your 14-day trial, you'll be asked to select a plan that best fits your needs. We'll help you transition smoothly."
+                  a: "After your 14-day trial, your selected plan will automatically begin and your card will be charged. You can cancel anytime before the trial ends."
                 },
               ].map((faq) => (
                 <div key={faq.q} className="space-y-3">
