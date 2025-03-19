@@ -9,6 +9,54 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      billing_history: {
+        Row: {
+          amount: number
+          billing_date: string
+          created_at: string | null
+          id: string
+          organization_id: string | null
+          status: string
+          stripe_invoice_id: string | null
+          subscription_id: string | null
+        }
+        Insert: {
+          amount: number
+          billing_date: string
+          created_at?: string | null
+          id?: string
+          organization_id?: string | null
+          status: string
+          stripe_invoice_id?: string | null
+          subscription_id?: string | null
+        }
+        Update: {
+          amount?: number
+          billing_date?: string
+          created_at?: string | null
+          id?: string
+          organization_id?: string | null
+          status?: string
+          stripe_invoice_id?: string | null
+          subscription_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_history_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_history_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contract_audit_trail: {
         Row: {
           action_type: string
@@ -87,9 +135,9 @@ export type Database = {
           signatory_email: string | null
           signatory_name: string | null
           start_date: string
-          status: string
+          status: Database["public"]["Enums"]["contract_status"]
           title: string
-          type: string
+          type: Database["public"]["Enums"]["contract_type"]
           vendor: string
           vendor_address: string | null
           vendor_email: string | null
@@ -109,9 +157,9 @@ export type Database = {
           signatory_email?: string | null
           signatory_name?: string | null
           start_date: string
-          status: string
+          status: Database["public"]["Enums"]["contract_status"]
           title: string
-          type: string
+          type: Database["public"]["Enums"]["contract_type"]
           vendor: string
           vendor_address?: string | null
           vendor_email?: string | null
@@ -131,9 +179,9 @@ export type Database = {
           signatory_email?: string | null
           signatory_name?: string | null
           start_date?: string
-          status?: string
+          status?: Database["public"]["Enums"]["contract_status"]
           title?: string
-          type?: string
+          type?: Database["public"]["Enums"]["contract_type"]
           vendor?: string
           vendor_address?: string | null
           vendor_email?: string | null
@@ -147,6 +195,7 @@ export type Database = {
           id: string
           organization_id: string
           role: string
+          updated_at: string | null
           user_id: string
         }
         Insert: {
@@ -154,6 +203,7 @@ export type Database = {
           id?: string
           organization_id: string
           role: string
+          updated_at?: string | null
           user_id: string
         }
         Update: {
@@ -161,6 +211,7 @@ export type Database = {
           id?: string
           organization_id?: string
           role?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: [
@@ -232,24 +283,80 @@ export type Database = {
           },
         ]
       }
-      waitlist: {
+      subscriptions: {
         Row: {
+          billing_interval: string
+          created_at: string | null
+          current_period_ends_at: string | null
           id: string
-          email: string
-          company_name: string | null
-          created_at: string
+          organization_id: string | null
+          plan_type: string
+          price_per_seat: number
+          seats: number
+          status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          trial_ends_at: string | null
+          updated_at: string | null
         }
         Insert: {
+          billing_interval: string
+          created_at?: string | null
+          current_period_ends_at?: string | null
           id?: string
-          email: string
-          company_name?: string | null
-          created_at?: string
+          organization_id?: string | null
+          plan_type: string
+          price_per_seat: number
+          seats?: number
+          status: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_ends_at?: string | null
+          updated_at?: string | null
         }
         Update: {
+          billing_interval?: string
+          created_at?: string | null
+          current_period_ends_at?: string | null
           id?: string
-          email?: string
+          organization_id?: string | null
+          plan_type?: string
+          price_per_seat?: number
+          seats?: number
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_ends_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      waitlist: {
+        Row: {
+          company_name: string | null
+          created_at: string | null
+          email: string
+          id: string
+        }
+        Insert: {
           company_name?: string | null
-          created_at?: string
+          created_at?: string | null
+          email: string
+          id?: string
+        }
+        Update: {
+          company_name?: string | null
+          created_at?: string | null
+          email?: string
+          id?: string
         }
         Relationships: []
       }
@@ -266,7 +373,27 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      contract_status:
+        | "new"
+        | "in_coord"
+        | "approved"
+        | "draft"
+        | "hold"
+        | "in_signature"
+        | "executed"
+        | "expired"
+        | "active"
+      contract_type:
+        | "service"
+        | "nda"
+        | "mou"
+        | "iaa"
+        | "sponsorship"
+        | "license"
+        | "employment"
+        | "other"
+        | "product"
+        | "vendor"
     }
     CompositeTypes: {
       [_ in never]: never
