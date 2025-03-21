@@ -1,19 +1,24 @@
 ## Feature Roadmap 
 
 ### Completed
-- [x] Authentication and user management
-  - [x] User registration and login with email/password
-  - [x] Email verification flow
-  - [x] Session management
-  - [x] Role-based access control foundation
+- [x] Authentication foundation
   - [x] Protected routes implementation
-  - [ ] OAuth providers (Google, Microsoft, etc.)
-  - [ ] Multi-factor authentication
-
-### In Progress
-- [ ] Role-based access control
+  - [x] Role-based access control foundation
+  - [x] Session management
+  - [x] Supabase database integration
   - [x] Basic role definitions (Admin, Manager, Viewer)
   - [x] Route protection based on roles
+
+### In Progress
+- [ ] Hybrid Authentication System
+  - [ ] Clerk.dev integration for SSO
+    - [ ] OAuth providers (Google, Microsoft, etc.)
+    - [ ] Multi-factor authentication
+    - [ ] User registration and login flows
+  - [ ] Supabase RBAC Integration
+    - [ ] JWT validation middleware
+    - [ ] Role-based permissions
+    - [ ] Organization management
   - [ ] Fine-grained permission system
   - [ ] Role assignment UI
 
