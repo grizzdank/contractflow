@@ -1,5 +1,5 @@
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useClerkAuth } from '@/contexts/ClerkAuthContext';
 import { UserRole } from '@/domain/types/Auth';
 
 interface ProtectedRouteProps {
@@ -15,11 +15,11 @@ interface ProtectedRouteProps {
  * @param requiredRoles - Optional array of roles that are allowed to access the route
  */
 export default function ProtectedRoute({ children, requiredRoles }: ProtectedRouteProps) {
-  const { authState } = useAuth();
+  const { authState, isLoaded } = useClerkAuth();
   const location = useLocation();
   
-  // Show loading state
-  if (authState.isLoading) {
+  // Show loading state while Clerk is initializing
+  if (!isLoaded || authState.isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>

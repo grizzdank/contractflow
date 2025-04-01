@@ -1,9 +1,27 @@
 import { mockContracts } from "./mockData";
 import { supabase } from "./supabase/client";
 import { Contract } from "@/types/contract";
+import { useClerk } from "@clerk/clerk-react";
 
 // Toggle this flag to switch between mock and real data
 export const USE_MOCK_DATA = false;
+
+// Helper function to get Supabase client with Clerk session
+async function getSupabaseWithAuth() {
+  const { session } = useClerk();
+  const token = await session?.getToken({
+    template: 'supabase'
+  });
+  
+  if (token) {
+    supabase.auth.setSession({
+      access_token: token,
+      refresh_token: '',
+    });
+  }
+  
+  return supabase;
+}
 
 // Helper function to map database fields to Contract type
 const mapDbToContract = (data: any): Contract => {
@@ -90,7 +108,8 @@ export const contractService = {
       return { data: contracts, error: null };
     }
     
-    const { data, error } = await supabase.from('contracts').select('*');
+    const supabaseClient = await getSupabaseWithAuth();
+    const { data, error } = await supabaseClient.from('contracts').select('*');
     
     if (error) return { data: null, error };
     
@@ -118,7 +137,8 @@ export const contractService = {
       };
     }
     
-    const { data, error } = await supabase
+    const supabaseClient = await getSupabaseWithAuth();
+    const { data, error } = await supabaseClient
       .from('contracts')
       .select('*')
       .eq('contract_number', id)
@@ -143,10 +163,12 @@ export const contractService = {
     console.log('Mapped contract for DB:', dbContract);
     
     try {
+      const supabaseClient = await getSupabaseWithAuth();
+      
       // For new contracts
       if (!contract.id) {
         console.log('Inserting new contract into Supabase');
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
           .from('contracts')
           .insert(dbContract)
           .select()
@@ -163,7 +185,7 @@ export const contractService = {
       
       // For updating existing contracts
       console.log('Updating existing contract in Supabase');
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('contracts')
         .update(dbContract)
         .eq('id', contract.id)
@@ -189,7 +211,8 @@ export const contractService = {
       return { data: [], error: null };
     }
     
-    const { data, error } = await supabase
+    const supabaseClient = await getSupabaseWithAuth();
+    const { data, error } = await supabaseClient
       .from('contract_coi_files')
       .select('*')
       .eq('contract_id', contractId)
@@ -204,7 +227,8 @@ export const contractService = {
       return { data: [], error: null };
     }
     
-    const { data, error } = await supabase
+    const supabaseClient = await getSupabaseWithAuth();
+    const { data, error } = await supabaseClient
       .from('contract_audit_trail')
       .select('*')
       .eq('contract_id', contractId)
@@ -230,18 +254,20 @@ export const contractService = {
     }
     
     try {
+      const supabaseClient = await getSupabaseWithAuth();
+      
       // Upload file to storage
       const fileExt = file.name.split('.').pop();
       const filePath = `${contractId}/${crypto.randomUUID()}.${fileExt}`;
       
-      const { error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabaseClient.storage
         .from('coi_files')
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
       // Create database record
-      const { data, error: dbError } = await supabase
+      const { data, error: dbError } = await supabaseClient
         .from('contract_coi_files')
         .insert({
           contract_id: contractId,
@@ -278,18 +304,20 @@ export const contractService = {
     }
     
     try {
+      const supabaseClient = await getSupabaseWithAuth();
+      
       // Upload file to storage
       const fileExt = file.name.split('.').pop();
-      const filePath = `${contractId}/executed_${crypto.randomUUID()}.${fileExt}`;
+      const filePath = `${contractId}/${crypto.randomUUID()}.${fileExt}`;
       
-      const { error: uploadError } = await supabase.storage
-        .from('coi_files')
+      const { error: uploadError } = await supabaseClient.storage
+        .from('executed_documents')
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
       // Create database record
-      const { data, error: dbError } = await supabase
+      const { data, error: dbError } = await supabaseClient
         .from('contract_coi_files')
         .insert({
           contract_id: contractId,
@@ -303,7 +331,7 @@ export const contractService = {
       if (dbError) throw dbError;
       
       // Add audit trail entry
-      await supabase
+      await supabaseClient
         .from('contract_audit_trail')
         .insert({
           contract_id: contractId,
@@ -329,7 +357,8 @@ export const contractService = {
     }
     
     try {
-      const { data, error } = await supabase.storage
+      const supabaseClient = await getSupabaseWithAuth();
+      const { data, error } = await supabaseClient.storage
         .from('coi_files')
         .download(filePath);
 
@@ -349,30 +378,20 @@ export const contractService = {
     }
     
     try {
-      // Delete from storage
-      const { error: storageError } = await supabase.storage
+      const supabaseClient = await getSupabaseWithAuth();
+      const { error } = await supabaseClient.storage
         .from('coi_files')
         .remove([filePath]);
 
-      if (storageError) throw storageError;
-
-      // Delete from database
-      const { error: dbError } = await supabase
-        .from('contract_coi_files')
-        .delete()
-        .eq('file_path', filePath);
-
-      if (dbError) throw dbError;
+      if (error) throw error;
       
       return { data: true, error: null };
     } catch (error) {
       console.error('Error deleting file:', error);
       return { data: false, error };
     }
-  }
-};
-
-export const teamService = {
+  },
+  
   async getTeamMembers() {
     if (USE_MOCK_DATA) {
       // Mock team members
@@ -406,26 +425,12 @@ export const teamService = {
       return { data: mockTeamMembers, error: null };
     }
     
-    // Get current user's department
-    const { data: userData } = await supabase.auth.getUser();
-    
-    if (!userData?.user) {
-      return { data: [], error: { message: "User not authenticated" } };
-    }
-    
-    // Get user's profile to determine department
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('department')
-      .eq('id', userData.user.id)
-      .single();
-    
-    const userDepartment = profileData?.department || 'Engineering';
-    
-    // Fetch team members from the same department and Operations
-    return await supabase
+    const supabaseClient = await getSupabaseWithAuth();
+    const { data, error } = await supabaseClient
       .from('profiles')
       .select('*')
-      .in('department', [userDepartment, 'Operations']);
+      .order('full_name');
+      
+    return { data, error };
   }
 }; 

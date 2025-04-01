@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { Database } from './types';
 
+// Note: We use Clerk for authentication, Supabase is only used for database and storage
 let supabase: ReturnType<typeof createClient<Database>>;
 
 try {
@@ -21,20 +22,24 @@ try {
   // Log the Supabase URL (without the key for security)
   console.log('Initializing Supabase client with URL:', supabaseUrl);
 
-  supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
-
-  // Test the connection
-  supabase.auth.getSession().then(({ data, error }) => {
-    if (error) {
-      console.error('Supabase connection error:', error);
-    } else {
-      console.log('Supabase connection successful. Session:', data.session ? 'Active' : 'None');
+  // Initialize Supabase client without auth features
+  supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
     }
   });
+
+  console.log('Supabase client initialized successfully');
 } catch (error) {
   console.error('Failed to initialize Supabase client:', error);
   // Create a mock client that won't throw errors but will log them
-  supabase = createClient('https://placeholder-url.supabase.co', 'placeholder-key');
+  supabase = createClient('https://placeholder-url.supabase.co', 'placeholder-key', {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
 }
 
 export { supabase }; 
