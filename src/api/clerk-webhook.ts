@@ -1,5 +1,17 @@
 import { Webhook } from 'svix';
-import { handleUserCreated, handleUserUpdated, handleUserDeleted } from '@/lib/clerk/webhooks';
+import { 
+  handleUserCreated, 
+  handleUserUpdated, 
+  handleUserDeleted 
+} from '@/lib/clerk/webhooks';
+import {
+  handleOrganizationCreated,
+  handleOrganizationUpdated,
+  handleOrganizationDeleted,
+  handleOrgMembershipCreated,
+  handleOrgMembershipUpdated,
+  handleOrgMembershipDeleted
+} from '@/lib/clerk/organization-webhooks';
 
 // Webhook secret from environment variable
 const webhookSecret = import.meta.env.VITE_CLERK_WEBHOOK_SECRET;
@@ -39,6 +51,7 @@ export async function handleWebhook(request: Request) {
 
     // Handle different webhook events
     switch (payload.type) {
+      // User events
       case 'user.created':
         await handleUserCreated(payload);
         break;
@@ -48,6 +61,29 @@ export async function handleWebhook(request: Request) {
       case 'user.deleted':
         await handleUserDeleted(payload);
         break;
+
+      // Organization events
+      case 'organization.created':
+        await handleOrganizationCreated(payload);
+        break;
+      case 'organization.updated':
+        await handleOrganizationUpdated(payload);
+        break;
+      case 'organization.deleted':
+        await handleOrganizationDeleted(payload);
+        break;
+
+      // Organization membership events
+      case 'organizationMembership.created':
+        await handleOrgMembershipCreated(payload);
+        break;
+      case 'organizationMembership.updated':
+        await handleOrgMembershipUpdated(payload);
+        break;
+      case 'organizationMembership.deleted':
+        await handleOrgMembershipDeleted(payload);
+        break;
+
       default:
         console.log('Unhandled webhook event type:', payload.type);
     }
