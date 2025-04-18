@@ -4,7 +4,7 @@ import Navigation from "@/components/Navigation";
 import { Users } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
-import { teamService } from "@/lib/dataService";
+import { TeamService } from "@/services/TeamService";
 
 type TeamMember = {
   id: string;
@@ -18,6 +18,7 @@ const Team = () => {
   const [userDepartment, setUserDepartment] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const teamService = new TeamService();
 
   useEffect(() => {
     const fetchTeamMembers = async () => {
@@ -43,7 +44,7 @@ const Team = () => {
     };
 
     fetchTeamMembers();
-  }, [toast]);
+  }, [toast, teamService]);
 
   // Group team members by department
   const groupedMembers = teamMembers.reduce((acc, member) => {

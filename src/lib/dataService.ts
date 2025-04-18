@@ -1,3 +1,8 @@
+// This file is deprecated and its contents have been moved to dedicated repositories and services.
+// It can be deleted once all components/pages are refactored to use the new services.
+
+// Example: import { ContractService } from '@/services/ContractService';
+
 import { mockContracts } from "./mockData";
 import { supabase } from "./supabase/client";
 import { Contract } from "@/types/contract";

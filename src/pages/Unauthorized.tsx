@@ -1,10 +1,10 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { useUser } from '@/contexts/AuthContext';
+import { useClerkUser } from '@/contexts/ClerkAuthContext';
 
 export default function Unauthorized() {
   const navigate = useNavigate();
-  const user = useUser();
+  const user = useClerkUser();
   
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-green-50 via-white to-orange-50 p-4">

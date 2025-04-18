@@ -146,30 +146,37 @@ Below is the step-by-step implementation plan for ContractFlow structured into s
 
 3.  **Service Layer Foundation:**
 
-    *   Create service interfaces for core functionality:
-        *   `src/services/interfaces/IAuthService.ts`
-        *   `src/services/interfaces/IContractService.ts`
-        *   `src/services/interfaces/IUserService.ts`
-        *   `src/services/interfaces/ITeamService.ts`
-        *   `src/services/interfaces/INotificationService.ts`
-    *   Implement concrete service classes that implement these interfaces.
+    *   Define service interfaces for core functionality using TypeScript interfaces in `src/services/interfaces/`:
+        *   `IAuthService.ts`
+        *   `IContractService.ts`
+        *   `IFileService.ts`
+        *   `ITeamService.ts`
+        *   `IAuditTrailService.ts`
+        *   `IUserProfileService.ts` (Potentially merge with ITeamService or IUserService if overlap)
+        *   `INotificationService.ts`
+    *   Implement concrete service classes in `src/services/` that implement these interfaces (e.g., `ContractService.ts`, `FileService.ts`).
+    *   Services encapsulate business logic and orchestrate calls to repositories.
 
-4.  **Data Access Layer:**
+4.  **Data Access Layer (Repositories):**
 
     *   Set up Supabase client in `src/lib/supabase/client.ts`.
-    *   Create data access repositories that abstract database operations:
-        *   `src/lib/repositories/ContractRepository.ts`
-        *   `src/lib/repositories/UserRepository.ts`
-        *   `src/lib/repositories/TeamRepository.ts`
-    *   Implement caching strategies for frequently accessed data.
+    *   Create data access repositories in `src/lib/repositories/` to abstract database interactions:
+        *   `ContractRepository.ts` (Handles `contracts` table)
+        *   `FileRepository.ts` (Handles `contract_coi_files` table and file storage interactions)
+        *   `AuditTrailRepository.ts` (Handles `contract_audit_trail` table)
+        *   `UserProfileRepository.ts` (Handles `profiles` table)
+        *   `OrganizationMemberRepository.ts` (Handles `organization_members` table)
+        *   *(Add other repositories as needed, e.g., for Templates, Notifications)*
+    *   Repositories are responsible *only* for data fetching/mutation, not business logic or data mapping to application types.
+    *   Implement caching strategies where appropriate (potentially at the service layer or using Supabase features).
 
 5.  **Authentication Framework:**
 
-    *   Implement a robust authentication system with Supabase:
-        *   Create `src/services/AuthService.ts` implementing `IAuthService`
-        *   Set up secure token storage and refresh mechanisms
-        *   Implement role-based access control
-    *   Add authentication hooks in `src/hooks/useAuth.ts`
+    *   Utilize Clerk for primary authentication (UI flows, session management).
+    *   Use `ClerkAuthProvider` (`src/contexts/ClerkAuthContext.tsx`) to manage auth state and provide user/session info.
+    *   Generate Supabase JWT tokens via Clerk (`getToken({ template: 'supabase' })`) for authenticating Supabase API calls.
+    *   Implement Supabase Row Level Security (RLS) policies based on user roles/organization memberships stored in Supabase tables (`profiles`, `organization_members`).
+    *   Refactor service authentication: Remove dependency on React hooks (`useAuth`) within service implementations. Pass necessary auth context (like user ID or token) explicitly to service methods requiring authorization.
 
 6.  **Error Handling and Logging:**
 
@@ -270,43 +277,47 @@ Below is the step-by-step implementation plan for ContractFlow structured into s
     *   Define policies to enforce roles (Administrator, Manager, Reviewer, Contributor, Viewer).
     *   Create comprehensive tests for permission checks.
 
-3.  **Contract Management API:**
+3.  **Contract Management Logic:**
 
-    *   Implement contract CRUD operations in the ContractService.
-    *   Add validation logic for contract data.
-    *   Implement audit logging for all contract changes.
+    *   Implement contract business logic (CRUD, validation) within `ContractService.ts`, utilizing `ContractRepository.ts`.
+    *   Implement audit logging for contract changes via `AuditTrailService.ts`.
 
-4.  **Template API:**
+4.  **File Management Logic:**
+
+    *   Implement file upload/download/delete logic within `FileService.ts`, utilizing `FileRepository.ts`.
+    *   Include audit logging for executed document uploads via `AuditTrailService.ts`.
+
+5.  **Template API:**
 
     *   Create functionality to fetch, customize, and save contract templates.
     *   Implement version control for templates.
 
-5.  **E-Signature Integration:**
+6.  **E-Signature Integration:**
 
     *   Develop integration modules for DocuSign, Adobe Sign, RightSignature, and PandaDoc APIs.
     *   Create a common interface for all e-signature providers.
     *   Implement secure handling of signature requests and callbacks.
 
-6.  **Notifications System:**
+7.  **Notifications System:**
 
     *   Create functionality to trigger notifications via email, SMS, and in-app alerts when key contract dates occur.
     *   Implement notification preferences and opt-out mechanisms.
 
-7.  **Reporting Functionality:**
+8.  **Reporting Functionality:**
 
     *   Develop functionality to generate and export contract reports in CSV and PDF formats.
     *   Implement data visualization components for dashboards.
 
-8.  **Subscription & Billing Integration:**
+9.  **Subscription & Billing Integration:**
 
     *   Integrate Stripe for subscription management.
     *   Implement secure handling of payment information.
     *   Add subscription management UI.
 
-9.  **Backend Testing:**
+10. **Backend Testing:**
 
-    *   Test each API endpoint and database operation to ensure correct behavior.
-    *   Implement integration tests for critical workflows.
+    *   Write unit tests for repositories and services.
+    *   Implement integration tests for critical workflows involving services and repositories.
 
 ## Phase 5: External Integrations
 
@@ -464,10 +475,11 @@ Below is the step-by-step implementation plan for ContractFlow structured into s
 
 ## Phase 6: Integration and Deployment
 
-1.  **Connect Supabase Auth with Frontend:**
+1.  **Connect Frontend to Services:**
 
-    *   In the Auth page, call Supabase auth functions to handle user sign-up and sign-in.
-    *   Implement proper error handling and user feedback.
+    *   Refactor components and pages (e.g., `Contracts.tsx`, `ContractDetails.tsx`, `Auth.tsx`) to use the newly implemented services (`ContractService`, `FileService`, etc.) instead of the deprecated `dataService.ts` or direct Supabase calls.
+    *   Adapt data fetching hooks or state management logic to work with the service layer.
+    *   Handle passing authentication context (tokens) to service methods from the UI layer where needed.
 
 2.  **Integrate Role-based Dashboard Rendering:**
 
@@ -554,3 +566,17 @@ Below is the step-by-step implementation plan for ContractFlow structured into s
 **Note:** Throughout the implementation ensure to adhere strictly to design and technical specifications outlined in the PRD. Validate every step using appropriate testing tools (unit tests, integration tests, and end-to-end tests) to confirm correct behavior and compliance with requirements.
 
 This plan provides an unambiguous, step-by-step guide for building ContractFlow with a focus on architecture, clean code, security, and scalability.
+
+
+in line review: 
+Consolidate and Verify:
+Merge type definitions into src/domain/types/. Ensure Contract type definition is complete and accurate.
+Review and unify role mapping logic (mapClerkRoleToDbRole and mapDatabaseRoleToUserRole).
+Replace hardcoded user email in the audit trail logic.
+Remove the USE_MOCK_DATA flag and related logic, relying on proper testing strategies instead.
+Roadmap Alignment & Feature Completion:
+Review features marked as complete in roadmap_future.md (e.g., Status tracking) and ensure their implementation is robust.
+Continue implementing features listed under "Current In-Scope" (Workflows, Advanced Document Management, Notifications, E-signatures).
+Implement Missing Infrastructure:
+Set up testing framework (Jest/RTL) as planned in Phase 1 and begin writing tests, especially for the refactored service layer.
+Implement the centralized error handling and logging strategy (Phase 2).
