@@ -4,11 +4,11 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "bun run --bun vite",
-    "build": "bun run --bun vite build",
-    "build:dev": "bun run --bun vite build --mode development",
-    "lint": "bun run --bun eslint .",
-    "preview": "bun run --bun vite preview"
+    "dev": "vite",
+    "build": "vite build",
+    "build:dev": "vite build --mode development",
+    "lint": "eslint .",
+    "preview": "vite preview"
   },
   "dependencies": {
     "@clerk/backend": "^1.25.8",
