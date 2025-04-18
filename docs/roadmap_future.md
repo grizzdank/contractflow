@@ -60,6 +60,33 @@
   - [ ] Signature request workflow
   - [ ] Signature verification and tracking
   - [ ] Optional: Native e-signature capability
+  - [ ] **SignWell API Integration**
+    - [ ] **Document Preparation & Upload**
+      - [ ] User creates or uploads a document in the app (UI: contract creation or upload form)
+      - [ ] Document is converted to PDF (if not already PDF) using a server-side or client-side library
+      - [ ] PDF is stored in Supabase storage and/or prepared for SignWell upload
+    - [ ] **SignWell API Workflow**
+      - [ ] App calls SignWell API to upload the PDF document
+      - [ ] UI for user to define signature fields, initials, dates, and other required fields (drag-and-drop or form-based)
+      - [ ] App sends field definitions to SignWell via API
+      - [ ] User sets recipients (signers, CCs) and their roles/emails in the UI
+      - [ ] App sends recipient info to SignWell and initiates the signature request (envelope creation)
+      - [ ] App tracks the SignWell envelope/document ID in the contract record in Supabase
+    - [ ] **Signature Process & Tracking**
+      - [ ] App displays real-time status of signature process (pending, viewed, signed, completed, declined)
+      - [ ] SignWell webhooks are configured to notify the app of signature events (viewed, signed, completed, declined, etc.)
+      - [ ] Webhook handler updates contract status and audit trail in Supabase
+      - [ ] UI notifies users of signature progress and completion (in-app and/or email notifications)
+    - [ ] **Post-Signature Handling**
+      - [ ] Download and store the signed PDF in Supabase storage
+      - [ ] Attach signed document to contract record and make available for download/viewing
+      - [ ] Update audit trail with signature events and timestamps
+    - [ ] **Error Handling & Security**
+      - [ ] Handle API errors and display user-friendly messages
+      - [ ] Securely store and manage SignWell API credentials (never expose to frontend)
+      - [ ] Validate all webhook requests from SignWell (signature verification)
+      - [ ] Ensure only authorized users can initiate and view signature requests
+      - [ ] Log all signature-related actions for compliance and auditing
 
 ### Technical Roadmap
 - [x] Database schema design and implementation
