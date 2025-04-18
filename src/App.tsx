@@ -1,20 +1,20 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { ClerkProvider } from "@clerk/clerk-react";
-import { ThemeProvider } from "./components/theme-provider";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import Contracts from "./pages/Contracts";
-import ContractRequest from "./pages/ContractRequest";
-import ContractApproval from "./pages/ContractApproval";
-import ContractDetails from "./pages/ContractDetails";
-import Team from "./pages/Team";
-import NotFound from "./pages/NotFound";
-import Notifications from "./pages/Notifications";
-import Unauthorized from "./pages/Unauthorized";
-import ProtectedRoute from "./components/ProtectedRoute";
-import { ClerkAuthProvider } from "./contexts/ClerkAuthContext";
-import { UserRole } from "./domain/types/Auth";
-import { clerkConfig } from "./lib/clerk/client";
+import { ThemeProvider } from "@/components/theme-provider";
+import Index from "@/pages/Index";
+import Auth from "@/pages/Auth";
+import Contracts from "@/pages/Contracts";
+import ContractRequest from "@/pages/ContractRequest";
+import ContractApproval from "@/pages/ContractApproval";
+import ContractDetails from "@/pages/ContractDetails";
+import Team from "@/pages/Team";
+import NotFound from "@/pages/NotFound";
+import Notifications from "@/pages/Notifications";
+import Unauthorized from "@/pages/Unauthorized";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import { ClerkAuthProvider } from "@/contexts/ClerkAuthContext";
+import { UserRole } from "@/domain/types/Auth";
+import { clerkConfig } from "@/lib/clerk/client";
 import "./App.css";
 
 function App() {

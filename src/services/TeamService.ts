@@ -1,7 +1,7 @@
-import { ITeamService } from "./interfaces/ITeamService";
+import { ITeamService } from "@/services/interfaces/ITeamService";
 import { UserProfileRepository } from "@/lib/repositories/UserProfileRepository";
 import { supabase } from "@/lib/supabase/client";
-import { getSupabaseSession } from "../lib/supabase/utils"; 
+import { getSupabaseSession } from "@/lib/supabase/utils"; 
 import { Database } from "@/lib/supabase/types";
 
 type DbProfile = Database['public']['Tables']['profiles']['Row'];

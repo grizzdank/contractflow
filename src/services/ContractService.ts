@@ -1,8 +1,8 @@
-import { IContractService } from "./interfaces/IContractService";
+import { IContractService } from "@/services/interfaces/IContractService";
 import { Contract } from "@/types/contract";
 import { ContractRepository } from "@/lib/repositories/ContractRepository";
 import { supabase } from "@/lib/supabase/client"; // Import the base client
-import { getSupabaseSession } from "../lib/supabase/utils"; // Corrected import path
+import { getSupabaseSession } from "@/lib/supabase/utils"; // Corrected import path
 import { Database } from "@/lib/supabase/types";
 
 type DbContract = Database['public']['Tables']['contracts']['Row'];

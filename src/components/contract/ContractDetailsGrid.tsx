@@ -1,10 +1,10 @@
-
+import { Card } from "@/components/ui/card";
 import { Contract } from "@/types/contract";
-import { ContractStatus } from "./components/ContractStatus";
-import { ContractAssignee } from "./components/ContractAssignee";
-import { ContractBasicInfo } from "./components/ContractBasicInfo";
-import { ContractDates } from "./components/ContractDates";
-import { ContractCreator } from "./components/ContractCreator";
+import { ContractStatus } from "@/components/contract/components/ContractStatus";
+import { ContractAssignee } from "@/components/contract/components/ContractAssignee";
+import { ContractBasicInfo } from "@/components/contract/components/ContractBasicInfo";
+import { ContractDates } from "@/components/contract/components/ContractDates";
+import { ContractCreator } from "@/components/contract/components/ContractCreator";
 
 interface ContractDetailsGridProps {
   contract: Contract | null;

@@ -1,8 +1,8 @@
-import { IFileService } from "./interfaces/IFileService";
+import { IFileService } from "@/services/interfaces/IFileService";
 import { FileRepository } from "@/lib/repositories/FileRepository";
 import { AuditTrailRepository } from "@/lib/repositories/AuditTrailRepository"; // Needed for audit log on executed doc upload
 import { supabase } from "@/lib/supabase/client";
-import { getSupabaseSession } from "../lib/supabase/utils"; 
+import { getSupabaseSession } from "@/lib/supabase/utils"; 
 import { Database } from "@/lib/supabase/types";
 
 type DbContractCoiFile = Database['public']['Tables']['contract_coi_files']['Row'];

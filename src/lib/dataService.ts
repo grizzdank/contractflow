@@ -3,8 +3,8 @@
 
 // Example: import { ContractService } from '@/services/ContractService';
 
-import { mockContracts } from "./mockData";
-import { supabase } from "./supabase/client";
+import { mockContracts } from "@/lib/mockData";
+import { supabase } from "@/lib/supabase/client";
 import { Contract } from "@/types/contract";
 import { useClerk } from "@clerk/clerk-react";
 

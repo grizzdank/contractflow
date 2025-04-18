@@ -1,7 +1,7 @@
-import { IAuditTrailService } from "./interfaces/IAuditTrailService";
+import { IAuditTrailService } from "@/services/interfaces/IAuditTrailService";
 import { AuditTrailRepository } from "@/lib/repositories/AuditTrailRepository";
 import { supabase } from "@/lib/supabase/client";
-import { getSupabaseSession } from "../lib/supabase/utils"; 
+import { getSupabaseSession } from "@/lib/supabase/utils"; 
 import { Database } from "@/lib/supabase/types";
 
 type DbAuditTrail = Database['public']['Tables']['contract_audit_trail']['Row'];
