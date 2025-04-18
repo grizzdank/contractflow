@@ -1,5 +1,5 @@
 import { ITeamService } from "@/services/interfaces/ITeamService";
-import { UserProfileRepository } from "@/lib/repositories/UserProfileRepository.ts";
+import { UserProfileRepository } from "@/lib/repositories/UserProfileRepository";
 import { supabase } from "@/lib/supabase/client";
 import { getSupabaseSession } from "@/lib/supabase/utils"; 
 import { Database } from "@/lib/supabase/types";
