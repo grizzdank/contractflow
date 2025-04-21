@@ -1,4 +1,5 @@
 import { supabase } from '../supabase/client';
+import { mapClerkRoleToDbRole } from '../auth/roleMappings';
 
 interface OrganizationWebhookEvent {
   data: {
@@ -208,23 +209,5 @@ export async function handleOrgMembershipDeleted(event: OrganizationMembershipWe
   } catch (error) {
     console.error('Error deleting organization membership from Supabase:', error);
     throw error;
-  }
-}
-
-/**
- * Map Clerk roles to database roles
- */
-function mapClerkRoleToDbRole(clerkRole: string): string {
-  switch (clerkRole.toLowerCase()) {
-    case 'org_admin':
-      return 'admin';
-    case 'org_manager':
-      return 'manager';
-    case 'org_reviewer':
-      return 'reviewer';
-    case 'org_contributor':
-      return 'contributor';
-    default:
-      return 'viewer';
   }
 } 

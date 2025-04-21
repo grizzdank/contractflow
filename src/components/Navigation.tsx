@@ -38,6 +38,7 @@ const Navigation = () => {
         <div className="flex justify-between items-center h-16">
           <Link to="/">
             <Button variant="ghost" className="flex items-center gap-2">
+              <img src="/logo-new.png" alt="ContractFlo Logo" className="h-8 w-auto mr-2" />
               <Home className="h-5 w-5" />
               <span>Home</span>
             </Button>

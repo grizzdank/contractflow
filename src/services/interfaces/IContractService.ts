@@ -1,4 +1,4 @@
-import { Contract } from "@/types/contract";
+import { Contract } from "@/domain/types/Contract";
 
 export interface IContractService {
   getAllContracts(): Promise<{ data: Contract[] | null; error: any }>;

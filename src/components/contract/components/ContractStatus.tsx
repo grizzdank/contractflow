@@ -1,7 +1,6 @@
-
 import { CheckCircle, Clock, Edit, FileText, Users } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Contract } from "@/types/contract";
+import { Contract } from "@/domain/types/Contract";
 
 interface ContractStatusProps {
   status: Contract['status'];

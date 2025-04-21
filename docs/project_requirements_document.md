@@ -1,8 +1,8 @@
-# Project Requirements Document (PRD) for ContractFlow
+# Project Requirements Document (PRD) for ContractFlo
 
 ## 1. Project Overview
 
-ContractFlow is a web-based platform built for small businesses to manage the entire lifecycle of their contracts. The platform simplifies daily operations by centralizing contract management, automating key reminders, and providing actionable insights to help users grow their business. At its core, ContractFlow tackles the challenge of inconsistent contract handling and the risk of missed deadlines by offering a structured, role-based approach to contract management.
+ContractFlo is a web-based platform built for small businesses to manage the entire lifecycle of their contracts. The platform simplifies daily operations by centralizing contract management, automating key reminders, and providing actionable insights to help users grow their business. At its core, ContractFlo tackles the challenge of inconsistent contract handling and the risk of missed deadlines by offering a structured, role-based approach to contract management.
 
 The platform is being built to modernize contract workflows while ensuring data security and compliance. Our key objectives include enabling easy search and retrieval of contracts, integrating with popular e-signature services, and delivering clear, actionable reporting for business performance. Success will be measured by smooth user onboarding, the robustness of role-based access, and the overall efficiency improvements in contract handling and compliance.
 
@@ -30,7 +30,7 @@ The platform is being built to modernize contract workflows while ensuring data 
 
 ## 3. User Flow
 
-A new user starts by accessing the ContractFlow website and is greeted with a clean, modern registration page. Registration is smooth and simple, utilizing Supabase for basic authentication, with the option of enhanced flows via Clerkdev if needed. After registering with an email and password, the user receives a confirmation email followed by an onboarding guide that explains the key features and benefits of the system. This introduction ensures users understand where to go next and how to navigate their new dashboard.
+A new user starts by accessing the ContractFlo website and is greeted with a clean, modern registration page. Registration is smooth and simple, utilizing Supabase for basic authentication, with the option of enhanced flows via Clerkdev if needed. After registering with an email and password, the user receives a confirmation email followed by an onboarding guide that explains the key features and benefits of the system. This introduction ensures users understand where to go next and how to navigate their new dashboard.
 
 Once registered, the user is directed to a personalized dashboard designed around their role. Administrators see detailed controls for billing, user management, and overall configuration. Managers, Reviewers, Contributors, and Viewers each see a tailored view highlighting the contracts and functionalities relevant to their position. From the dashboard, users can navigate to the centralized contract repository for search and management, utilize pre-built templates for creating contracts, and set up or receive multi-channel notifications about important dates. The intuitive navigation and clear layout ensure users experience a logical, step-by-step progression through contract creation, review, approval, signing, and reporting.
 
@@ -190,4 +190,4 @@ Once registered, the user is directed to a personalized dashboard designed aroun
     *   Multi-channel notification systems (email, SMS, in-app) can have varied deliverability and latency.
     *   Mitigation: Use proven third-party providers for notifications and include fallback mechanisms to ensure timely delivery.
 
-This document serves as the comprehensive guide for ContractFlow's development, ensuring clarity and focus in all subsequent technical documents. It is designed to leave no room for guesswork, establishing a solid foundation for both the development team and future AI-assisted technical implementation.
+This document serves as the comprehensive guide for ContractFlo's development, ensuring clarity and focus in all subsequent technical documents. It is designed to leave no room for guesswork, establishing a solid foundation for both the development team and future AI-assisted technical implementation.

@@ -1,4 +1,4 @@
-Below is the step-by-step implementation plan for ContractFlow structured into six phases, with an emphasis on architecture, clean code, security, and scalability.
+Below is the step-by-step implementation plan for ContractFlo structured into six phases, with an emphasis on architecture, clean code, security, and scalability.
 
 ## Phase 0: Architecture and Design Principles
 
@@ -64,7 +64,7 @@ Below is the step-by-step implementation plan for ContractFlow structured into s
     *   Create a new React project with TypeScript and Vite by running:
 
     ```
-    bun create vite contractflow -- --template react-ts
+    bun create vite contractflo -- --template react-ts
     ```
 
     *   This provides a modern, fast development environment with hot module replacement.
@@ -410,7 +410,7 @@ Below is the step-by-step implementation plan for ContractFlow structured into s
 
         *   Create `src/lib/auth/roleMappings.ts` to map provider groups to application roles:
             *   Implement logic to extract group membership from tokens or provider APIs.
-            *   Map Microsoft security groups or Google groups to ContractFlow roles.
+            *   Map Microsoft security groups or Google groups to ContractFlo roles.
             *   Update user permissions based on group membership.
             *   Ensure consistent role assignment regardless of authentication provider.
 
@@ -565,18 +565,5 @@ Below is the step-by-step implementation plan for ContractFlow structured into s
 
 **Note:** Throughout the implementation ensure to adhere strictly to design and technical specifications outlined in the PRD. Validate every step using appropriate testing tools (unit tests, integration tests, and end-to-end tests) to confirm correct behavior and compliance with requirements.
 
-This plan provides an unambiguous, step-by-step guide for building ContractFlow with a focus on architecture, clean code, security, and scalability.
+This plan provides an unambiguous, step-by-step guide for building ContractFlo with a focus on architecture, clean code, security, and scalability.
 
-
-in line review: 
-Consolidate and Verify:
-Merge type definitions into src/domain/types/. Ensure Contract type definition is complete and accurate.
-Review and unify role mapping logic (mapClerkRoleToDbRole and mapDatabaseRoleToUserRole).
-Replace hardcoded user email in the audit trail logic.
-Remove the USE_MOCK_DATA flag and related logic, relying on proper testing strategies instead.
-Roadmap Alignment & Feature Completion:
-Review features marked as complete in roadmap_future.md (e.g., Status tracking) and ensure their implementation is robust.
-Continue implementing features listed under "Current In-Scope" (Workflows, Advanced Document Management, Notifications, E-signatures).
-Implement Missing Infrastructure:
-Set up testing framework (Jest/RTL) as planned in Phase 1 and begin writing tests, especially for the refactored service layer.
-Implement the centralized error handling and logging strategy (Phase 2).

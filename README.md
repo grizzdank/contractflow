@@ -1,10 +1,10 @@
-# ContractFlow
+# ContractFlo
 
-ContractFlow is a web-based platform built for small businesses to manage the entire lifecycle of their contracts. The platform simplifies daily operations by centralizing contract management, automating key reminders, and providing actionable insights to help users grow their business.
+ContractFlo is a web-based platform built for small businesses to manage the entire lifecycle of their contracts. The platform simplifies daily operations by centralizing contract management, automating key reminders, and providing actionable insights to help users grow their business. At its core, ContractFlo tackles the challenge of inconsistent contract handling and the risk of missed deadlines by offering a structured, role-based approach to contract management. The platform is designed to modernize contract workflows while ensuring data security and compliance.
 
 ## Project Overview
 
-ContractFlow tackles the challenge of inconsistent contract handling and the risk of missed deadlines by offering a structured, role-based approach to contract management. The platform is designed to modernize contract workflows while ensuring data security and compliance.
+ContractFlo tackles the challenge of inconsistent contract handling and the risk of missed deadlines by offering a structured, role-based approach to contract management. The platform is designed to modernize contract workflows while ensuring data security and compliance.
 
 ## Key Features
 
@@ -36,10 +36,10 @@ ContractFlow tackles the challenge of inconsistent contract handling and the ris
 
 ```sh
 # Clone the repository
-git clone https://github.com/yourusername/contractflow.git
+git clone https://github.com/yourusername/contractflo.git
 
 # Navigate to the project directory
-cd contractflow
+cd contractflo
 
 # Install dependencies
 bun install

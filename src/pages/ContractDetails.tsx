@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import Navigation from "@/components/Navigation";
 import { COIFileUpload } from "@/components/COIFileUpload";
-import { Contract } from "@/types/contract";
+import { Contract } from "@/domain/types/Contract";
 import { ContractHeader } from "@/components/contract/ContractHeader";
 import { ContractDetailsGrid } from "@/components/contract/ContractDetailsGrid";
 import { ContractAttachments } from "@/components/contract/ContractAttachments";

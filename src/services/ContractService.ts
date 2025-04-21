@@ -1,5 +1,5 @@
 import { IContractService } from "@/services/interfaces/IContractService";
-import { Contract } from "@/types/contract";
+import { Contract } from "@/domain/types/Contract";
 import { ContractRepository } from "@/lib/repositories/ContractRepository";
 import { supabase } from "@/lib/supabase/client"; // Import the base client
 import { getSupabaseSession } from "@/lib/supabase/utils"; // Corrected import path

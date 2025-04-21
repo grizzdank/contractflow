@@ -1,6 +1,5 @@
-
 import { Calendar, User } from "lucide-react";
-import { Contract } from "@/types/contract";
+import { Contract } from "@/domain/types/Contract";
 
 interface ContractDatesProps {
   department: string;

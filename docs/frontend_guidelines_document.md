@@ -1,8 +1,8 @@
-# ContractFlow Frontend Guideline Document
+# ContractFlo Frontend Guideline Document
 
 ## Introduction
 
-ContractFlow is a web-based platform designed to simplify the contract lifecycle for small businesses. The frontend of this platform is crucial because it directly affects how users interact with the system – from managing contracts to receiving reminders and generating reports. The design is intentionally clean, minimalistic, and easy-to-navigate to ensure that even users with little technical knowledge can use it efficiently. By using modern technologies and a thoughtful design approach, the platform seeks to offer an engaging, secure, and high-performance experience that supports the overall business needs of its users.
+ContractFlo is a web-based platform designed to simplify the contract lifecycle for small businesses. The frontend of this platform is crucial because it directly affects how users interact with the application and its various features. This document serves as a guideline for maintaining consistency, ensuring quality, and promoting best practices in the development of the user interface and user experience.
 
 ## Frontend Architecture
 
@@ -14,19 +14,19 @@ Our design approach focuses on usability, accessibility, and responsiveness. Eve
 
 ## Styling and Theming
 
-Styling in ContractFlow is managed using Tailwind CSS, which allows for rapid, utility-first styling that results in a clean and modern appearance. We embrace a minimalistic approach with a neutral color palette, featuring shades of grey, white, and soft blues to keep the focus on content rather than decorative elements. The theming is handled in such a way that if changes are needed, developers can update the look and feel across the entire application easily, ensuring that the interface remains consistent and professional.
+Styling in ContractFlo is managed using Tailwind CSS, which allows for rapid, utility-first styling that results in a clean and modern appearance. We embrace a minimalistic approach with a neutral color palette, primarily using shades of gray, white, and blue, along with subtle animations to enhance user interaction without causing distraction. Accessibility is also a key consideration, and our styling choices must adhere to WCAG guidelines to ensure the platform is usable by everyone. The theming is handled in such a way that if changes are needed, developers can update the look and feel across the entire application easily, ensuring that the interface remains consistent and professional.
 
 ## Component Structure
 
-The project follows a component-based architecture where UI pieces are broken down into reusable elements. Each component is designed for a single responsibility and can be effortlessly reused throughout the app. Whether it’s a button, input field, or a more complex card displaying contract details, components are organized in a modular folder structure that makes them easy to locate and update. This approach not only streamlines development but also ensures that improvements in one component are reflected wherever it is used in the application.
+The project follows a component-based architecture where UI pieces are broken down into reusable elements. Each component is designed for a single responsibility and can be effortlessly reused throughout the app. Whether it's a button, input field, or a more complex card displaying contract details, components are organized in a modular folder structure that makes them easy to locate and update. This approach not only streamlines development but also ensures that improvements in one component are reflected wherever it is used in the application.
 
 ## State Management
 
-The frontend state is managed in a way that balances simplicity with flexibility. While many interactions are local to individual components, global state management helps share data between components when needed. Depending on the complexity, lightweight solutions like React’s Context API can be used, but the architecture supports scaling up to more robust implementations if necessary. By keeping state management predictable and centralized, the platform ensures that users experience smooth transitions between views and interactions without unnecessary latency or data inconsistency.
+The frontend state is managed in a way that balances simplicity with flexibility. While many interactions are local to individual components, global state management helps share data between components when needed. Depending on the complexity, lightweight solutions like React's Context API can be used, but the architecture supports scaling up to more robust implementations if necessary. By keeping state management predictable and centralized, the platform ensures that users experience smooth transitions between views and interactions without unnecessary latency or data inconsistency.
 
 ## Routing and Navigation
 
-Routing in ContractFlow is handled by the routing capabilities provided by Next.js, enabling both server-side and client-side navigation for quicker page transitions and an overall smoother user experience. The navigation structure is designed to be intuitive, with personalized dashboards and clear menu options based on user roles. This ensures that every user – whether an Administrator, Manager, Reviewer, Contributor, or Viewer – can effortlessly move between sections like the dashboard, contract repository, and reporting tools without confusion.
+Routing in ContractFlo is handled by the routing capabilities provided by Next.js, enabling both server-side and client-side navigation for quicker page transitions and an overall smoother user experience. The architecture ensures that URLs are meaningful and reflect the user's location within the application, making navigation intuitive. The navigation structure is designed to be intuitive, with personalized dashboards and clear menu options based on user roles. This ensures that every user – whether an Administrator, Manager, Reviewer, Contributor, or Viewer – can effortlessly move between sections like the dashboard, contract repository, and reporting tools without confusion.
 
 ## Performance Optimization
 
@@ -38,4 +38,4 @@ Ensuring a high quality and reliable user interface is paramount. The frontend c
 
 ## Conclusion and Overall Frontend Summary
 
-In summary, the ContractFlow frontend is designed with a focus on clarity, ease of use, and robust performance. It combines a modern tech stack including Next.js 14, TypeScript, and Tailwind CSS with a component-based approach that simplifies future maintenance and scaling. The emphasis on clean, accessible design paired with efficient state management and rigorous testing ensures that users enjoy a seamless and secure experience. By adhering to these guidelines, the platform stands out as a reliable tool tailored for small businesses looking to manage their contracts efficiently.
+In summary, the ContractFlo frontend is designed with a focus on clarity, ease of use, and robust performance. It combines a modern tech stack including Next.js 14, TypeScript, and Tailwind CSS with a component-based architecture managed through Storybook. By adhering to these guidelines, we can maintain a consistent, high-quality user experience across the entire platform, ensuring that ContractFlo is both powerful and simple for small businesses to use.

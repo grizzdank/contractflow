@@ -14,7 +14,7 @@ const Index = () => {
           {/* Header */}
           <header className="text-center space-y-4">
             <div className="inline-block px-4 py-1 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-full text-sm font-medium mb-4">
-              Welcome to ContractFlow
+              Welcome to ContractFlo
             </div>
             <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-emerald-700 to-orange-600 bg-clip-text text-transparent">
               Contract Management Made Simple

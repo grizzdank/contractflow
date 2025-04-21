@@ -1,7 +1,6 @@
-
 import { Building, DollarSign } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { Contract } from "@/types/contract";
+import { Contract } from "@/domain/types/Contract";
 
 interface ContractBasicInfoProps {
   contract: {

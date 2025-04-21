@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { FileText, Search, Filter, CheckCircle, Clock, Edit, Users, User } from "lucide-react";
 import Navigation from "@/components/Navigation";
-import { Contract } from "@/types/contract";
+import { Contract } from "@/domain/types/Contract";
 import { contractService } from "@/lib/dataService";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabase/client";

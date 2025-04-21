@@ -1,5 +1,6 @@
 import { supabase } from '../supabase/client';
 import { UserRole } from '@/domain/types/Auth';
+import { mapClerkRoleToDbRole } from '../auth/roleMappings';
 
 interface WebhookEvent {
   data: {
@@ -172,23 +173,5 @@ export async function handleUserDeleted(event: WebhookEvent) {
   } catch (error) {
     console.error('Error deleting user from Supabase:', error);
     throw error;
-  }
-}
-
-/**
- * Map Clerk roles to database roles
- */
-function mapClerkRoleToDbRole(clerkRole: string): string {
-  switch (clerkRole.toLowerCase()) {
-    case 'org_admin':
-      return 'admin';
-    case 'org_manager':
-      return 'manager';
-    case 'org_reviewer':
-      return 'reviewer';
-    case 'org_contributor':
-      return 'contributor';
-    default:
-      return 'viewer';
   }
 } 

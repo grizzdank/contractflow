@@ -19,7 +19,7 @@ import "./App.css";
 
 function App() {
   return (
-    <ThemeProvider defaultTheme="system" storageKey="contractflow-theme">
+    <ThemeProvider defaultTheme="system" storageKey="contractflo-theme">
       <ClerkProvider {...clerkConfig}>
         <ClerkAuthProvider>
           <Router>

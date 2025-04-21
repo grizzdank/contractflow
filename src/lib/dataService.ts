@@ -5,11 +5,8 @@
 
 import { mockContracts } from "@/lib/mockData";
 import { supabase } from "@/lib/supabase/client";
-import { Contract } from "@/types/contract";
+import { Contract } from "@/domain/types/Contract";
 import { useClerk } from "@clerk/clerk-react";
-
-// Toggle this flag to switch between mock and real data
-export const USE_MOCK_DATA = false;
 
 // Helper function to get Supabase client with Clerk session
 async function getSupabaseWithAuth() {
@@ -100,19 +97,6 @@ const mapContractToDb = (contract: Contract): any => {
 
 export const contractService = {
   async getContracts() {
-    if (USE_MOCK_DATA) {
-      // Get any submitted contract from localStorage
-      const submittedContract = localStorage.getItem('submittedContract');
-      let contracts = [...mockContracts];
-      
-      if (submittedContract) {
-        const parsedContract = JSON.parse(submittedContract);
-        contracts = [parsedContract, ...contracts];
-      }
-      
-      return { data: contracts, error: null };
-    }
-    
     const supabaseClient = await getSupabaseWithAuth();
     const { data, error } = await supabaseClient.from('contracts').select('*');
     
@@ -124,24 +108,6 @@ export const contractService = {
   },
   
   async getContractById(id: string) {
-    if (USE_MOCK_DATA) {
-      // First check localStorage for submitted contract
-      const submittedContract = localStorage.getItem('submittedContract');
-      if (submittedContract) {
-        const parsedContract = JSON.parse(submittedContract);
-        if (parsedContract.id === id || parsedContract.contractNumber === id) {
-          return { data: parsedContract, error: null };
-        }
-      }
-      
-      // Then check mock contracts
-      const contract = mockContracts.find(c => c.id === id || c.contractNumber === id);
-      return { 
-        data: contract || null, 
-        error: contract ? null : { message: `Contract ${id} not found` }
-      };
-    }
-    
     const supabaseClient = await getSupabaseWithAuth();
     const { data, error } = await supabaseClient
       .from('contracts')
@@ -157,12 +123,6 @@ export const contractService = {
   },
   
   async saveContract(contract: Contract) {
-    if (USE_MOCK_DATA) {
-      // Save to localStorage
-      localStorage.setItem('submittedContract', JSON.stringify(contract));
-      return { data: contract, error: null };
-    }
-    
     // Map Contract type to database fields
     const dbContract = mapContractToDb(contract);
     console.log('Mapped contract for DB:', dbContract);
@@ -211,11 +171,6 @@ export const contractService = {
   },
   
   async getContractCOIFiles(contractId: string) {
-    if (USE_MOCK_DATA) {
-      // Return empty array for mock data
-      return { data: [], error: null };
-    }
-    
     const supabaseClient = await getSupabaseWithAuth();
     const { data, error } = await supabaseClient
       .from('contract_coi_files')
@@ -227,11 +182,6 @@ export const contractService = {
   },
   
   async getContractAuditTrail(contractId: string) {
-    if (USE_MOCK_DATA) {
-      // Return empty array for mock data
-      return { data: [], error: null };
-    }
-    
     const supabaseClient = await getSupabaseWithAuth();
     const { data, error } = await supabaseClient
       .from('contract_audit_trail')
@@ -243,21 +193,6 @@ export const contractService = {
   },
   
   async uploadCOIFile(contractId: string, file: File, expirationDate?: string) {
-    if (USE_MOCK_DATA) {
-      // Mock successful upload
-      return { 
-        data: {
-          id: crypto.randomUUID(),
-          contract_id: contractId,
-          file_name: file.name,
-          file_path: `mock/${contractId}/${file.name}`,
-          uploaded_at: new Date().toISOString(),
-          expiration_date: expirationDate || null
-        }, 
-        error: null 
-      };
-    }
-    
     try {
       const supabaseClient = await getSupabaseWithAuth();
       
@@ -293,21 +228,6 @@ export const contractService = {
   },
   
   async uploadExecutedDocument(contractId: string, file: File) {
-    if (USE_MOCK_DATA) {
-      // Mock successful upload
-      return { 
-        data: {
-          id: crypto.randomUUID(),
-          contract_id: contractId,
-          file_name: file.name,
-          file_path: `mock/${contractId}/executed_${file.name}`,
-          uploaded_at: new Date().toISOString(),
-          is_executed_contract: true
-        }, 
-        error: null 
-      };
-    }
-    
     try {
       const supabaseClient = await getSupabaseWithAuth();
       
@@ -353,83 +273,28 @@ export const contractService = {
   },
   
   async downloadFile(filePath: string) {
-    if (USE_MOCK_DATA) {
-      // Mock successful download
-      return { 
-        data: new Blob(['Mock file content'], { type: 'application/octet-stream' }), 
-        error: null 
-      };
-    }
-    
-    try {
-      const supabaseClient = await getSupabaseWithAuth();
-      const { data, error } = await supabaseClient.storage
-        .from('coi_files')
-        .download(filePath);
+    const supabaseClient = await getSupabaseWithAuth();
+    const { data, error } = await supabaseClient.storage
+      .from('coi_files')
+      .download(filePath);
 
-      if (error) throw error;
-      
-      return { data, error: null };
-    } catch (error) {
-      console.error('Error downloading file:', error);
-      return { data: null, error };
-    }
+    if (error) throw error;
+    
+    return { data, error: null };
   },
   
   async deleteFile(filePath: string) {
-    if (USE_MOCK_DATA) {
-      // Mock successful deletion
-      return { data: true, error: null };
-    }
-    
-    try {
-      const supabaseClient = await getSupabaseWithAuth();
-      const { error } = await supabaseClient.storage
-        .from('coi_files')
-        .remove([filePath]);
+    const supabaseClient = await getSupabaseWithAuth();
+    const { error } = await supabaseClient.storage
+      .from('coi_files')
+      .remove([filePath]);
 
-      if (error) throw error;
-      
-      return { data: true, error: null };
-    } catch (error) {
-      console.error('Error deleting file:', error);
-      return { data: false, error };
-    }
+    if (error) throw error;
+    
+    return { data: true, error: null };
   },
   
   async getTeamMembers() {
-    if (USE_MOCK_DATA) {
-      // Mock team members
-      const mockTeamMembers = [
-        {
-          id: "1",
-          full_name: "John Doe",
-          email: "john.doe@example.com",
-          department: "Engineering"
-        },
-        {
-          id: "2",
-          full_name: "Jane Smith",
-          email: "jane.smith@example.com",
-          department: "Engineering"
-        },
-        {
-          id: "3",
-          full_name: "Robert Johnson",
-          email: "robert.johnson@example.com",
-          department: "Operations"
-        },
-        {
-          id: "4",
-          full_name: "Emily Davis",
-          email: "emily.davis@example.com",
-          department: "Operations"
-        }
-      ];
-      
-      return { data: mockTeamMembers, error: null };
-    }
-    
     const supabaseClient = await getSupabaseWithAuth();
     const { data, error } = await supabaseClient
       .from('profiles')

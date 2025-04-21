@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { Contract } from "@/types/contract";
+import { Contract } from "@/domain/types/Contract";
 import { ContractStatus } from "@/components/contract/components/ContractStatus";
 import { ContractAssignee } from "@/components/contract/components/ContractAssignee";
 import { ContractBasicInfo } from "@/components/contract/components/ContractBasicInfo";

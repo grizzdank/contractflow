@@ -1,7 +1,6 @@
-
 import { User } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Contract } from "@/types/contract";
+import { Contract } from "@/domain/types/Contract";
 
 interface ContractAssigneeProps {
   assignedTo: Contract['assignedTo'];
