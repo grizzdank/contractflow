@@ -1,64 +1,81 @@
-import { useNavigate, useLocation } from "react-router-dom";
-import { SignIn, SignUp } from "@clerk/clerk-react";
-import { dark } from "@clerk/themes";
-import { useTheme } from "@/components/theme-provider";
+import { useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { SignIn, SignUp, useClerk, useUser } from '@clerk/clerk-react';
+import { ThemeProvider } from '@/components/theme-provider';
 import Navigation from "@/components/Navigation";
 
-const Auth = () => {
+export default function Auth() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { theme } = useTheme();
-
-  // Determine if we're in sign up mode from the URL
-  const isSignUp = location.pathname === "/sign-up";
+  const { user } = useUser();
+  const clerk = useClerk();
+  
+  const isSignUp = location.pathname === '/sign-up';
+  
+  // Log component state
+  useEffect(() => {
+    console.log('[Auth] Component mounted', {
+      isSignUp,
+      pathname: location.pathname,
+      user: !!user,
+      state: location.state
+    });
+    
+    return () => {
+      console.log('[Auth] Component unmounting');
+    };
+  }, [location, user, isSignUp]);
 
   // Handle successful authentication
-  const handleComplete = () => {
-    // Get the intended destination from location state or default to home
-    const from = location.state?.from?.pathname || "/";
-    navigate(from, { replace: true });
+  const handleSuccess = () => {
+    console.log('[Auth] Authentication successful');
+    const destination = location.state?.redirectTo || '/';
+    console.log('[Auth] Navigating to:', destination);
+    navigate(destination, { replace: true });
   };
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (user) {
+      console.log('[Auth] User already authenticated, redirecting');
+      handleSuccess();
+    }
+  }, [user]);
 
   return (
     <>
       <Navigation />
-      <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-orange-50 dark:from-green-950 dark:via-background dark:to-orange-950 pt-16">
-        <div className="max-w-md mx-auto p-6">
-          {isSignUp ? (
-            <SignUp
-              appearance={{
-                baseTheme: theme === "dark" ? dark : undefined,
-                elements: {
-                  card: "shadow-none",
-                  rootBox: "w-full",
-                  formButtonPrimary: 
-                    "bg-primary hover:bg-primary/90 text-primary-foreground shadow-none",
-                }
-              }}
-              redirectUrl={location.state?.from?.pathname || "/"}
-              afterSignUpUrl={location.state?.from?.pathname || "/"}
-              signInUrl="/auth"
-            />
-          ) : (
-            <SignIn
-              appearance={{
-                baseTheme: theme === "dark" ? dark : undefined,
-                elements: {
-                  card: "shadow-none",
-                  rootBox: "w-full",
-                  formButtonPrimary: 
-                    "bg-primary hover:bg-primary/90 text-primary-foreground shadow-none",
-                }
-              }}
-              redirectUrl={location.state?.from?.pathname || "/"}
-              afterSignInUrl={location.state?.from?.pathname || "/"}
-              signUpUrl="/sign-up"
-            />
-          )}
+      <ThemeProvider defaultTheme="dark" storageKey="contractflow-ui-theme">
+        <div className="flex min-h-screen flex-col items-center justify-center bg-background">
+          <div className="w-full max-w-md space-y-6 rounded-lg border p-6 shadow-lg">
+            {isSignUp ? (
+              <SignUp
+                appearance={{
+                  elements: {
+                    formButtonPrimary: 'bg-green-500 hover:bg-green-600',
+                    footerActionLink: 'text-green-500 hover:text-green-600'
+                  }
+                }}
+                signInUrl="/auth"
+                redirectUrl="/"
+                fallbackRedirectUrl="/"
+              />
+            ) : (
+              <SignIn
+                appearance={{
+                  elements: {
+                    formButtonPrimary: 'bg-green-500 hover:bg-green-600',
+                    footerActionLink: 'text-green-500 hover:text-green-600'
+                  }
+                }}
+                signUpUrl="/sign-up"
+                redirectUrl="/"
+                fallbackRedirectUrl="/"
+              />
+            )}
+          </div>
         </div>
-      </div>
+      </ThemeProvider>
     </>
   );
-};
-
-export default Auth;
+}

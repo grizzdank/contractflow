@@ -121,7 +121,7 @@ const Contracts = () => {
         amount: 10000,
         start_date: formattedStartDate,
         end_date: formattedEndDate,
-        status: "Draft",
+        status: "draft",
         type: "services",
         department: "IT",
         creator_id: null, // Set to null to work with anonymous policy

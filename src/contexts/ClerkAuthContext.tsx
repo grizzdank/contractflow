@@ -1,23 +1,24 @@
-import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
-import { useClerk, useUser, useOrganizationList } from '@clerk/clerk-react';
-import type { SignedInSessionResource, UserResource } from '@clerk/types';
-import { User, UserRole, AuthState } from '@/domain/types/Auth';
-import { supabase } from '@/lib/supabase/client';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback, useMemo, ReactNode } from 'react';
+import { useClerk, useUser, useAuth } from '@clerk/clerk-react';
+import type { UserResource } from '@clerk/types';
+import { UserRole, AuthState } from '@/domain/types/Auth';
+import { createAuthenticatedSupabaseClient } from '../lib/supabase/client';
+import { Database } from '../lib/supabase/types';
+import { SupabaseClient } from '@supabase/supabase-js';
 
-interface AuthUser {
+// Simplified AuthUser for context state
+interface ContextAuthUser {
   id: string;
-  role: UserRole;
-  email: string;
-  organizationId?: string | null;
-  createdAt?: string;
-  updatedAt?: string;
+  role: UserRole | null; // Role can be null initially while loading
+  email?: string;
+  organizationId?: string | null; // Org ID can be null initially
 }
 
-// Expand AuthStateType to include more detailed loading/status
+// Refined internal state type
 interface AuthStateType {
-  user: AuthUser | null;
-  isClerkLoading: boolean; // Is useUser still loading?
-  isSupabaseLoading: boolean; // Are we syncing token/role?
+  user: ContextAuthUser | null;
+  isClerkLoading: boolean; // Are useUser/useAuth hooks ready?
+  isRoleLoading: boolean; // Are we fetching the role from Supabase?
   isInitializationAttemptComplete: boolean; // Has InitializeClerkSession run?
   isSignedIn: boolean | undefined; // Reflect Clerk's isSignedIn directly
   error?: Error;
@@ -25,82 +26,125 @@ interface AuthStateType {
 
 interface ClerkAuthContextType {
   authState: AuthStateType;
-  isLoaded: boolean; // Represents overall readiness (Clerk loaded AND init attempted)
-  signalInitializationComplete: () => void; // Function for Initializer component
+  isLoaded: boolean; // Represents overall readiness (Clerk loaded AND init attempted AND role loaded/failed)
+  signalInitializationComplete: () => void;
 }
 
 const initialAuthState: AuthStateType = {
   user: null,
   isClerkLoading: true,
-  isSupabaseLoading: false,
+  isRoleLoading: false, // Starts as false
   isInitializationAttemptComplete: false,
   isSignedIn: undefined,
   error: undefined
 };
 
-// Export the context so it can be consumed
 export const ClerkAuthContext = createContext<ClerkAuthContextType | undefined>(undefined);
 
-// Function to fetch user role from Supabase using Clerk User ID
-const fetchUserRole = async (clerkUserId: string): Promise<{ role: UserRole; organizationId: string | null }> => {
+// Function to fetch user role from Supabase using Clerk User ID and an authenticated client
+// Accepts getToken to create the client dynamically
+const fetchUserRole = async (
+    clerkUserId: string,
+    getToken: (options?: { template?: string }) => Promise<string | null>
+  ): Promise<{ role: UserRole; organizationId: string | null } | null> => {
   if (!clerkUserId) {
     console.log('[fetchUserRole] No Clerk User ID provided.');
-    return { role: UserRole.VIEWER, organizationId: null };
+    return null; // Return null if no ID
   }
-
+  console.log(`[fetchUserRole] Fetching role for Clerk User ID: ${clerkUserId}`);
+  let authenticatedSupabase: SupabaseClient<Database>; // Define type
   try {
-    const { data: memberData, error: memberError } = await supabase
+    // Create the authenticated client *inside* the function
+    console.log('[fetchUserRole] Creating authenticated Supabase client...');
+    authenticatedSupabase = await createAuthenticatedSupabaseClient(getToken);
+    console.log('[fetchUserRole] Authenticated Supabase client created.');
+
+    // Perform the query with the authenticated client
+    const { data: memberData, error: memberError } = await authenticatedSupabase
       .from('organization_members')
       .select('role, organization_id')
       .eq('user_id', clerkUserId)
       .maybeSingle();
 
-    if (memberError && memberError.code !== 'PGRST116') {
-      console.error('[fetchUserRole] Error fetching user role:', memberError);
-      return { role: UserRole.VIEWER, organizationId: null };
+    // Log the raw response
+    console.log('[fetchUserRole] Supabase response:', { memberData, memberError });
+
+    // Handle specific Supabase errors explicitly
+    if (memberError) {
+       // PGRST116: "The result contains 0 rows" - this is not an error, just means no membership found
+      if (memberError.code === 'PGRST116') {
+         console.log(`[fetchUserRole] No membership found for user ${clerkUserId}.`);
+         return { role: UserRole.VIEWER, organizationId: null }; // Default role if no membership
+      } else {
+        // Log other Supabase errors
+        console.error('[fetchUserRole] Error fetching user role:', memberError);
+        throw new Error(`Supabase error fetching role: ${memberError.message}`); // Throw to be caught below
+      }
     }
 
+    // If data is explicitly null (and no error other than PGRST116), it means no record found
     if (!memberData) {
-        console.log(`[fetchUserRole] No membership found for user ${clerkUserId}. Defaulting to VIEWER.`);
+        console.log(`[fetchUserRole] No membership record explicitly found for user ${clerkUserId}. Defaulting to VIEWER.`);
         return { role: UserRole.VIEWER, organizationId: null };
     }
 
+    // Map the role from the database string to the UserRole enum
+    const mappedRole = mapDatabaseRoleToUserRole(memberData.role);
+    console.log(`[fetchUserRole] Found membership. DB Role: ${memberData.role}, Mapped Role: ${mappedRole}, Org ID: ${memberData.organization_id}`);
     return {
-      role: mapDatabaseRoleToUserRole(memberData.role),
+      role: mappedRole,
       organizationId: memberData.organization_id,
     };
+
   } catch (error) {
-    console.error('[fetchUserRole] Exception fetching user role:', error);
-    return { role: UserRole.VIEWER, organizationId: null };
+    // Catch errors from client creation or the fetch itself
+    console.error('[fetchUserRole] Exception during authenticated client creation or role fetch:', error);
+     return null; // Or throw error if upstream needs to handle it differently
   }
 };
 
-// Map database role to UserRole enum
+// Map database role string to UserRole enum
 const mapDatabaseRoleToUserRole = (dbRole: string | null): UserRole => {
-  if (!dbRole) return UserRole.VIEWER;
+  if (!dbRole) {
+    console.warn('[mapDatabaseRoleToUserRole] Received null dbRole, defaulting to VIEWER.');
+    return UserRole.VIEWER;
+  }
+  // Handle potential schema prefix "role:" if present
   const roleKey = dbRole.includes(':') ? dbRole.split(':')[1] : dbRole;
 
   switch (roleKey.toLowerCase()) {
-    case 'admin':
-      return UserRole.ADMINISTRATOR;
-    case 'manager':
-      return UserRole.MANAGER;
-    case 'reviewer':
-      return UserRole.REVIEWER;
-    case 'contributor':
-      return UserRole.CONTRIBUTOR;
-    case 'viewer':
+    case 'admin': return UserRole.ADMINISTRATOR;
+    case 'manager': return UserRole.MANAGER;
+    case 'reviewer': return UserRole.REVIEWER;
+    case 'contributor': return UserRole.CONTRIBUTOR;
+    case 'viewer': return UserRole.VIEWER;
     default:
+      console.warn(`[mapDatabaseRoleToUserRole] Unknown dbRole '${dbRole}', defaulting to VIEWER.`);
       return UserRole.VIEWER;
   }
 };
 
 export function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
-  const clerk = useClerk();
-  const { isLoaded: isUserLoaded, isSignedIn, user } = useUser();
+  console.log('[ClerkAuthProvider] Rendering Provider...');
+
+  // Use useAuth to get getToken along with other details
+  const { isLoaded: isAuthLoaded, isSignedIn: isAuthSignedIn, getToken, userId } = useAuth();
+  // Keep useUser for convenience if specific user details are needed beyond ID/email
+  const { user: clerkUser } = useUser();
+  // Keep useClerk if direct access to the Clerk instance is needed for other reasons (e.g., navigation)
+  // const clerk = useClerk();
+
+  // Log initial state from hooks immediately
+  console.log('[ClerkAuthProvider] Initial Hook State:', {
+    isAuthLoaded,
+    isAuthSignedIn,
+    userId,
+    hasClerkUser: !!clerkUser,
+    // clerkUserId: clerkUser?.id // Redundant if userId is available
+  });
 
   const [authState, setAuthState] = useState<AuthStateType>(initialAuthState);
-  const isSupabaseSyncing = useRef(false); // Ref to prevent concurrent Supabase syncs
+  const hasAttemptedRoleFetch = useRef(false); // Track if role fetch has been initiated for the current user
 
   // Callback for InitializeClerkSession to signal completion
   const signalInitializationComplete = useCallback(() => {
@@ -108,133 +152,136 @@ export function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
     setAuthState(prev => ({ ...prev, isInitializationAttemptComplete: true }));
   }, []);
 
-  // Effect 1: Update basic Clerk state (isLoaded, isSignedIn, basic user)
+
+  // Effect 1: Update basic sign-in state & clear user on sign-out/loading
   useEffect(() => {
-    console.log('[ClerkAuthProvider][Effect1] Updating basic state based on useUser:', { isUserLoaded, isSignedIn });
-    setAuthState(prev => ({
-      ...prev,
-      isClerkLoading: !isUserLoaded,
-      isSignedIn: isUserLoaded ? isSignedIn : undefined, // Only set isSignedIn when user is loaded
-      // Keep user potentially stale here until Supabase sync, or update partially?
-      // Let's keep it null until full sync for simplicity, role is crucial.
-      user: null, 
-      isLoading: !isUserLoaded, // Reflect only Clerk loading here
-    }));
-  }, [isUserLoaded, isSignedIn]);
+      console.log('[ClerkAuthProvider] Effect 1 (Clerk State Sync) - Running.', { isAuthLoaded, isAuthSignedIn });
+      setAuthState(prev => {
+          // Only update if Clerk's state has changed significantly
+           const clerkLoadingChanged = prev.isClerkLoading !== !isAuthLoaded;
+           const signedInStatusChanged = prev.isSignedIn !== isAuthSignedIn;
 
-  // Effect 2: Sync with Supabase (get token, fetch role) AFTER initialization attempt
+           if (!clerkLoadingChanged && !signedInStatusChanged) {
+               console.log('[ClerkAuthProvider] Effect 1 - Skipping state update, no change in Clerk status.');
+               return prev; // No change needed
+           }
+
+           const newState: AuthStateType = {
+              ...prev,
+              isClerkLoading: !isAuthLoaded,
+              isSignedIn: isAuthLoaded ? isAuthSignedIn : undefined,
+              // If loading or signed out, clear the user and reset role loading
+              // Use userId from useAuth as the primary identifier
+              user: (isAuthLoaded && isAuthSignedIn && userId) ? (prev.user ?? { id: userId, email: clerkUser?.primaryEmailAddress?.emailAddress, role: null }) : null,
+              isRoleLoading: (isAuthLoaded && isAuthSignedIn && userId) ? prev.isRoleLoading : false, // Reset role loading if user is cleared
+              error: (isAuthLoaded && !isAuthSignedIn) ? undefined : prev.error, // Clear error on sign-out
+           };
+           
+           // Reset role fetch attempt flag if the user logs out or changes
+           if (!newState.user || (prev.user && newState.user && prev.user.id !== newState.user.id)) {
+               console.log('[ClerkAuthProvider] Effect 1 - User changed or logged out, resetting role fetch flag.');
+               hasAttemptedRoleFetch.current = false;
+           }
+
+           console.log('[ClerkAuthProvider] Effect 1 - State Updated:', { from: prev, to: newState });
+           return newState;
+      });
+  }, [isAuthLoaded, isAuthSignedIn, userId, clerkUser]); // Depend on userId from useAuth
+
+
+  // Effect 2: Fetch Role when user is loaded, signed in, and hasn't been fetched yet
   useEffect(() => {
-    const syncWithSupabase = async () => {
-      // Conditions to run:
-      // 1. Initialization component MUST have run its course.
-      // 2. useUser hook must be loaded and report isSignedIn=true (use direct hook values).
-      // 3. Must NOT be already syncing.
-      if (!authState.isInitializationAttemptComplete || !isUserLoaded || !isSignedIn || isSupabaseSyncing.current) {
-         console.log('[ClerkAuthProvider][Effect2] Skipping Supabase sync. Conditions not met:', {
-            initAttempted: authState.isInitializationAttemptComplete,
-            isUserHookLoaded: isUserLoaded,
-            isUserHookSignedIn: isSignedIn, // Use direct hook value
-            isSyncing: isSupabaseSyncing.current
-         });
-         // If init is complete but user is signed out, ensure Supabase is logged out
-         if (authState.isInitializationAttemptComplete && isUserLoaded && !isSignedIn) {
-            console.log('[ClerkAuthProvider][Effect2] Init complete, user hook loaded, user not signed in. Signing out Supabase.')
-            await supabase.auth.signOut().catch(console.error);
-         }
-         return; 
-      }
-      
-      // Ensure user object is available (redundant check if isSignedIn is true, but safe)
-      if (!user) {
-          console.error('[ClerkAuthProvider][Effect2] Inconsistency: Hook reports signed in but no user object.');
-          setAuthState(prev => ({ ...prev, isSupabaseLoading: false, error: new Error('Clerk signed in state inconsistency during sync') }));
-          await supabase.auth.signOut().catch(console.error);
-          return;
-      }
+    const currentUserId = authState.user?.id; // Use ID from our state
+    console.log('[ClerkAuthProvider] Effect 2 (Role Fetch) - Checking conditions.', {
+        userId: currentUserId,
+        isRoleLoading: authState.isRoleLoading,
+        hasAttemptedFetch: hasAttemptedRoleFetch.current,
+        isClerkLoading: authState.isClerkLoading, // Based on isAuthLoaded
+        isSignedIn: authState.isSignedIn // Based on isAuthSignedIn
+    });
 
-      // Start syncing
-      isSupabaseSyncing.current = true;
-      console.log(`[ClerkAuthProvider][Effect2] Conditions met for user: ${user.id}. Starting Supabase sync.`);
-      setAuthState(prev => ({ ...prev, isSupabaseLoading: true, error: undefined }));
+    // Conditions to fetch role:
+    // 1. We have a user ID in our state.
+    // 2. We are not already loading the role.
+    // 3. We haven't already attempted to fetch the role for this user ID.
+    // 4. Clerk basic loading is finished (isClerkLoading is false).
+    // 5. User is signed in according to state (isSignedIn is true).
+    // 6. getToken function is available.
+    if (currentUserId && !authState.isRoleLoading && !hasAttemptedRoleFetch.current && !authState.isClerkLoading && authState.isSignedIn === true && getToken) {
+      console.log(`[ClerkAuthProvider] Effect 2 - Conditions met. Attempting role fetch for user: ${currentUserId}`);
+      hasAttemptedRoleFetch.current = true; // Mark that we are starting the fetch attempt
+      setAuthState(prev => ({ ...prev, isRoleLoading: true, error: undefined }));
 
-      // --- Introduce a minimal delay before getToken ---
-      setTimeout(async () => {
-        console.log('[ClerkAuthProvider][Effect2] Executing sync logic after minimal delay.');
-        let supabaseToken: string | null = null;
-        try {
-          // 1. Get Supabase token
-          if (!clerk.session) throw new Error('Clerk session missing during Supabase sync');
-          console.log("[ClerkAuthProvider][Effect2] Attempting to get Supabase token.");
-          supabaseToken = await clerk.session.getToken(); // Use template if needed: { template: 'supabase' } ? Check if necessary
-          if (!supabaseToken) throw new Error('Received null Supabase token from Clerk');
-
-          // Decode the token to access claims
-          const decodedToken = JSON.parse(atob(supabaseToken.split('.')[1])); // Consider using jwtDecode library for safety
-          console.log("[ClerkAuthProvider][Effect2] Decoded Supabase Token Claims:", decodedToken);
-
-          // 2. Set Supabase session
-          await supabase.auth.setSession({ access_token: supabaseToken, refresh_token: '' });
-          console.log("[ClerkAuthProvider][Effect2] Supabase client auth set.");
-
-          // 3. GET ROLE AND ORG ID DIRECTLY FROM TOKEN
-          const orgData = decodedToken.o || {}; // Get the 'o' claim, default to empty object if missing
-          const tokenRole = orgData.rol || 'viewer'; // Get the role from token, default to 'viewer' if missing
-          const tokenOrgId = orgData.id || null; // Get the org ID from token
-
-          // Map the token role string ('admin') to your internal UserRole enum
-          const mappedRole = mapDatabaseRoleToUserRole(tokenRole);
-          console.log(`[ClerkAuthProvider][Effect2] Role from token: ${tokenRole}, Mapped role: ${mappedRole}, Org ID: ${tokenOrgId}`);
-
-          const userData: AuthUser = {
-            id: user.id,
-            email: user.primaryEmailAddress?.emailAddress || '',
-            role: mappedRole, // Use the role derived from the token
-            organizationId: tokenOrgId, // Use the org ID from the token
-            createdAt: new Date(user.createdAt).toISOString(),
-            updatedAt: new Date(user.lastSignInAt || user.updatedAt || user.createdAt).toISOString(),
-          };
-
-          // 4. Update final state
+      // Pass getToken to fetchUserRole
+      fetchUserRole(currentUserId, getToken).then(roleInfo => {
+          console.log('[ClerkAuthProvider] Effect 2 - Role fetch completed.', { roleInfo });
+          setAuthState(prev => {
+             // Ensure we are still updating the state for the same user
+             if (prev.user?.id !== currentUserId) {
+                 console.warn('[ClerkAuthProvider] Effect 2 - User changed during role fetch, discarding result.');
+                 return { ...prev, isRoleLoading: false }; // Stop loading, but don't apply stale data
+             }
+             if (roleInfo) {
+                return {
+                   ...prev,
+                   user: { ...prev.user!, role: roleInfo.role, organizationId: roleInfo.organizationId }, // Update user with role and orgId
+                   isRoleLoading: false,
+                   error: undefined
+                };
+             } else {
+                 // fetchUserRole returned null, indicating an error during fetch or default assignment
+                  console.error(`[ClerkAuthProvider] Effect 2 - Role fetch failed or defaulted for user ${currentUserId}. Check fetchUserRole logs.`);
+                  // Keep user ID but mark role as potentially problematic (null or default VIEWER already set by fetchUserRole)
+                  // Or set an error state if fetchUserRole threw an error that was caught and returned null
+                   return {
+                     ...prev,
+                     // Ensure user object exists before trying to access its properties
+                     user: prev.user ? { ...prev.user, role: prev.user.role ?? UserRole.VIEWER } : null,
+                     isRoleLoading: false,
+                     // Set or keep existing error, provide a default if none exists
+                     error: prev.error ?? new Error('Failed to fetch user role.')
+                   };
+             }
+          });
+      }).catch(error => {
+          // This catch block might be redundant if fetchUserRole catches internally and returns null,
+          // but added for safety.
+          console.error('[ClerkAuthProvider] Effect 2 - Unexpected error during fetchUserRole call:', error);
           setAuthState(prev => ({
-            ...prev,
-            user: userData,
-            isSignedIn: true, // Explicitly set signedIn state to true
-            isSupabaseLoading: false,
-            error: undefined
+             ...prev,
+             isRoleLoading: false,
+             error: error instanceof Error ? error : new Error('Role fetch failed unexpectedly.')
           }));
-          console.log(`[ClerkAuthProvider][Effect2] Supabase sync complete for user: ${userData.id}`);
+      });
+    } else {
+       console.log('[ClerkAuthProvider] Effect 2 - Skipping role fetch, conditions not met or already attempted.');
+       // Log why skipped
+       if (!getToken) console.log('[ClerkAuthProvider] Effect 2 - Reason: getToken not available.');
+       if (!currentUserId) console.log('[ClerkAuthProvider] Effect 2 - Reason: No user ID in state.');
+       if (authState.isRoleLoading) console.log('[ClerkAuthProvider] Effect 2 - Reason: Role fetch already in progress.');
+       if (hasAttemptedRoleFetch.current) console.log('[ClerkAuthProvider] Effect 2 - Reason: Role fetch already attempted for this user.');
+       if (authState.isClerkLoading) console.log('[ClerkAuthProvider] Effect 2 - Reason: Clerk is loading.');
+       if (authState.isSignedIn !== true) console.log('[ClerkAuthProvider] Effect 2 - Reason: User is not signed in.');
+    }
+  // Depend on user ID changes, loading states, and getToken availability
+  }, [authState.user?.id, authState.isRoleLoading, authState.isClerkLoading, authState.isSignedIn, getToken]);
 
-        } catch (error) {
-          console.error('[ClerkAuthProvider][Effect2] Error during Supabase sync:', error);
-          setAuthState(prev => ({
-            ...prev,
-            user: null,
-            isSignedIn: false, // Explicitly set signedIn state to false on error
-            isSupabaseLoading: false,
-            error: error instanceof Error ? error : new Error('Unknown error during Supabase sync')
-          }));
-          await supabase.auth.signOut().catch(console.error); 
-        } finally {
-          // Important: Set syncing to false ONLY within the setTimeout callback
-          isSupabaseSyncing.current = false;
-          console.log('[ClerkAuthProvider][Effect2] Finished Supabase sync run (inside setTimeout).');
-        }
-      }, 0); // Minimal delay (0 ms)
 
-    };
+  // Overall loading state: Clerk auth hooks must be loaded, init must be attempted, role must be loaded/failed.
+  const isProviderLoaded = isAuthLoaded && authState.isInitializationAttemptComplete && !authState.isRoleLoading;
 
-    void syncWithSupabase();
-    // Dependencies: Run when initialization attempt completes, or useUser status changes.
-  }, [authState.isInitializationAttemptComplete, isUserLoaded, isSignedIn, user, clerk.session]); // Depend on hook values directly
+   console.log('[ClerkAuthProvider] Final Render State:', {
+       isProviderLoaded,
+       authState
+   });
 
-  // Calculate overall loading state
-  const overallIsLoading = authState.isClerkLoading || !authState.isInitializationAttemptComplete || authState.isSupabaseLoading;
-
-  const contextValue: ClerkAuthContextType = {
+  const contextValue: ClerkAuthContextType = useMemo(() => ({
     authState,
-    isLoaded: !overallIsLoading, // Considered loaded when all stages are complete
-    signalInitializationComplete
-  };
+    isLoaded: isProviderLoaded, // Use the calculated overall loaded state
+    signalInitializationComplete,
+    // getToken, // Expose getToken if needed by consumers, otherwise rely on useAuth
+  }), [authState, isProviderLoaded, signalInitializationComplete]); // Add getToken if exposed
+
 
   return (
     <ClerkAuthContext.Provider value={contextValue}>
@@ -242,6 +289,8 @@ export function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
     </ClerkAuthContext.Provider>
   );
 }
+
+// --- Hooks ---
 
 export function useClerkAuth() {
   const context = useContext(ClerkAuthContext);
@@ -251,9 +300,20 @@ export function useClerkAuth() {
   return context;
 }
 
+// Convenience hook to get just the user object
 export function useClerkUser() {
   const { authState } = useClerkAuth();
   return authState.user;
+}
+
+// Convenience hook to get loading and signed-in status easily
+export function useAuthStatus() {
+    const { authState, isLoaded } = useClerkAuth();
+    return {
+        isLoading: !isLoaded,
+        isSignedIn: authState.isSignedIn ?? false, // Default to false if undefined
+        isLoaded // Expose the combined loaded status
+    };
 }
 
 // This hook might return null if we remove session from state
