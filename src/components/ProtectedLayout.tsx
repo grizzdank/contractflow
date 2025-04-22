@@ -1,15 +1,21 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { supabase } from "@/lib/supabase/client";
-import { Loader2 } from "lucide-react";
+import React from 'react';
+import { Outlet } from 'react-router-dom';
+import Navigation from '@/components/Navigation'; // Or your main navigation component
 
-interface ProtectedLayoutProps {
-  children: React.ReactNode;
-}
-
-const ProtectedLayout = ({ children }: ProtectedLayoutProps) => {
-  // Temporarily bypass authentication checks
-  return <>{children}</>;
+// This component wraps all authenticated routes
+// It assumes it's rendered within ClerkAuthProvider and InitializeClerkSession
+const ProtectedLayout = () => {
+  // You could add layout elements here if needed (e.g., sidebar, header for authed users)
+  return (
+    <div className="flex flex-col min-h-screen">
+      <Navigation /> {/* Example: Navigation for authenticated users */}
+      <main className="flex-grow container mx-auto p-4">
+        {/* Outlet renders the matched nested route component (e.g., Index, Contracts) */}
+        <Outlet /> 
+      </main>
+      {/* Footer if needed */}
+    </div>
+  );
 };
 
 export default ProtectedLayout;

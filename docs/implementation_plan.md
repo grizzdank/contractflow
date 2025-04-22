@@ -567,3 +567,31 @@ Below is the step-by-step implementation plan for ContractFlo structured into si
 
 This plan provides an unambiguous, step-by-step guide for building ContractFlo with a focus on architecture, clean code, security, and scalability.
 
+demo steps: 
+SSO Status: The Auth.tsx page uses the standard Clerk <SignIn> and <SignUp> components. The clerkConfig in src/lib/clerk/client.ts sets up the publishable key but doesn't explicitly enable or configure additional providers like Microsoft. Action Needed: Microsoft SSO needs to be configured in your Clerk dashboard and potentially reflected in the frontend code (e.g., by adding provider buttons to the Auth.tsx page or customizing the Clerk components if necessary, as outlined in Phase 5 of the plan).
+2. Supabase Database Functionality:
+Service Layer: ContractService.ts now exists and handles database interactions via ContractRepository.ts. This aligns with the planned architecture. The mapping functions (mapDbToContract, mapContractToDb) are present.
+Data Fetching: Contracts.tsx uses contractService.getContracts() to fetch data. ContractDetails.tsx uses contractService.getContractById(). This seems correct.
+RLS: The previous errors in Contracts.tsx (like code 42501) strongly indicated RLS issues. While the code now uses getSupabaseWithAuth which should help, RLS policies themselves need to be correctly configured in Supabase. Action Needed: Double-check and test your Supabase RLS policies thoroughly. Ensure they allow authenticated users (based on the JWT from Clerk) with appropriate roles to perform SELECT, INSERT, UPDATE operations on the contracts, profiles, organization_members, and other relevant tables. The "Create Test Contract" button in Contracts.tsx tries an insert and could be a good test case.
+Data Mapping: The mapDbToContract function in ContractService.ts has logic to handle potentially invalid status and type values from the DB, defaulting them. This is good defensive coding. Ensure the Contract type definition in src/domain/types/Contract.ts accurately reflects all necessary fields retrieved from the database.
+3. UI/UX Polish & Demo Flow:
+Core Pages:
+Index.tsx: Looks like a reasonable landing/dashboard page.
+Auth.tsx: Standard Clerk login/signup flow (needs SSO button).
+Contracts.tsx: Provides a list/table view with search and filtering. Includes a "Create Test Contract" button (useful for demoing RLS/inserts if working).
+ContractDetails.tsx: Shows details, allows editing (controlled by isEditing state), includes components for attachments, comments, audit trail. Seems relatively complete for viewing/basic editing.
+Navigation: Navigation.tsx includes links to Home, Contracts, Request, Team, and Sign In/Out. The new logo is integrated. Looks functional.
+Potential Issues:
+The dataService.ts file still exists and is marked as deprecated. While we removed the mock data flag, pages like Contracts.tsx and ContractDetails.tsx still import contractService from it. This needs refactoring to import from the actual ContractService.ts implementation.
+Error handling seems present (e.g., in Contracts.tsx fetch), but ensure it's robust enough for a demo.
+Placeholders/TODOs: Check components like ContractAttachments.tsx, ContractComments.tsx, ContractAuditTrail.tsx (used in ContractDetails.tsx) for completeness if they are part of the demo flow. The audit trail service seemed basic, and comment adding in ContractDetails.tsx uses hardcoded user info (currentUser, Current User).
+Summary & Demo Readiness Checklist:
+[URGENT] Microsoft SSO: Needs configuration in Clerk dashboard and likely frontend adjustments. (Blocker)
+[URGENT] Supabase RLS: Must be configured correctly and tested to ensure users can view/create/edit data as expected. The previous errors suggest this is a critical point. (Blocker)
+[HIGH] Refactor Service Imports: Update pages (Contracts.tsx, ContractDetails.tsx, etc.) to import from the actual ContractService.ts (in src/services/) instead of the deprecated src/lib/dataService.ts. Delete dataService.ts afterwards.
+[MEDIUM] Audit Trail User: Update the audit trail logic (if used in the demo) to use the actual logged-in user, not hardcoded values. Similarly, fix comment creation user data in ContractDetails.tsx.
+[MEDIUM] Data Consistency: Ensure the Contract type matches the database schema and the data mapping functions are accurate.
+[LOW] E-Sign: Confirm this is out of scope for the demo.
+[LOW] Testing Framework: Can be skipped for the demo.
+Recommendation:
+Focus immediately on configuring Microsoft SSO in Clerk and thoroughly testing/fixing the Supabase RLS policies. These are the biggest potential demo blockers. After that, refactor the service imports and clean up any hardcoded user info in features you plan to show.

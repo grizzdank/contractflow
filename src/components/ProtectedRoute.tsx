@@ -1,10 +1,10 @@
 import { Navigate, useLocation } from 'react-router-dom';
-import { useClerkAuth } from '@/contexts/ClerkAuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { UserRole } from '@/domain/types/Auth';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredRoles?: UserRole[];
+  allowedRoles?: UserRole[];
 }
 
 /**
@@ -12,36 +12,36 @@ interface ProtectedRouteProps {
  * and optionally user roles.
  * 
  * @param children - The components to render if the user is authenticated
- * @param requiredRoles - Optional array of roles that are allowed to access the route
+ * @param allowedRoles - Optional array of roles that are allowed to access the route
  */
-export default function ProtectedRoute({ children, requiredRoles }: ProtectedRouteProps) {
-  const { authState, isLoaded } = useClerkAuth();
+export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
+  const { user, session, isLoading } = useAuth();
   const location = useLocation();
-  
-  // Show loading state while Clerk is initializing
-  if (!isLoaded || authState.isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
-      </div>
-    );
+
+  console.log(`[ProtectedRoute] Path: ${location.pathname} - Checking auth...`, {
+    isLoading,
+    hasUser: !!user,
+    userId: user?.id,
+    userRole: user?.role,
+    hasSession: !!session,
+    allowedRoles,
+  });
+
+  if (isLoading) {
+    console.log(`[ProtectedRoute] Path: ${location.pathname} - Still loading auth state.`);
+    return <div>Authenticating... Please wait.</div>;
   }
-  
-  // Redirect to login if not authenticated
-  if (!authState.user || !authState.session) {
+
+  if (!user) {
+    console.log(`[ProtectedRoute] Path: ${location.pathname} - No user found. Redirecting to /auth.`);
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
-  
-  // Check role requirements if specified
-  if (requiredRoles && requiredRoles.length > 0) {
-    const hasRequiredRole = requiredRoles.includes(authState.user.role);
-    
-    if (!hasRequiredRole) {
-      // Redirect to unauthorized page or dashboard
-      return <Navigate to="/unauthorized" replace />;
-    }
+
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    console.log(`[ProtectedRoute] Path: ${location.pathname} - User role (${user.role}) not allowed. Allowed: ${allowedRoles.join(', ')}. Redirecting to /unauthorized.`);
+    return <Navigate to="/unauthorized" replace />;
   }
-  
-  // User is authenticated and has required role (if specified)
+
+  console.log(`[ProtectedRoute] Path: ${location.pathname} - Access granted. Rendering children.`);
   return <>{children}</>;
 } 

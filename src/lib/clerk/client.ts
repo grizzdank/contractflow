@@ -18,12 +18,14 @@ export const clerkConfig = {
       footerActionLink: 'text-green-500 hover:text-green-600'
     },
   },
-  // Navigate after sign in/up
+  // Navigate after sign in/up - Use fallbackRedirectUrl
   afterSignIn: {
-    redirectUrl: '/',
+    // redirectUrl: '/', // Deprecated
+    fallbackRedirectUrl: '/', 
   },
   afterSignUp: {
-    redirectUrl: '/',
+    // redirectUrl: '/', // Deprecated
+    fallbackRedirectUrl: '/', 
   },
   signInUrl: '/auth',
   signUpUrl: '/auth',
