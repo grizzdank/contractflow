@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { useAuth } from '@clerk/clerk-react';
 import { Database } from './types';
 
 // Note: We use Clerk for authentication, Supabase is only used for database and storage
@@ -25,8 +26,13 @@ try {
   // Initialize Supabase client without auth features
   supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     auth: {
-      autoRefreshToken: false,
-      persistSession: false
+      persistSession: false,
+      autoRefreshToken: false
+    },
+    global: {
+      headers: {
+        'x-debug-token': 'true'
+      }
     }
   });
 

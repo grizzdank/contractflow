@@ -1,38 +1,46 @@
-import { supabase } from "@/lib/supabase/client";
-import { useAuth } from "@clerk/clerk-react"; 
+import { supabase } from "./client";
+import { useAuth } from "@clerk/clerk-react";
 
 /**
- * Utility function to get the current Supabase session using Clerk token.
- * This should ideally be called within a React component or context where useAuth is available.
- * For server-side or non-React contexts, the token needs to be passed differently.
+ * Sets a Supabase session using a JWT token.
+ * This can be used in both React and non-React contexts.
+ */
+export async function setSupabaseSessionFromJwt(token: string) {
+  if (!token) {
+    console.warn('No token provided to setSupabaseSessionFromJwt');
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase.auth.setSession({
+      access_token: token,
+      refresh_token: ''  // Clerk handles token refresh
+    });
+
+    if (error) {
+      console.error('Error setting Supabase session:', error);
+      return null;
+    }
+
+    return data.session;
+  } catch (error) {
+    console.error('Error in setSupabaseSessionFromJwt:', error);
+    return null;
+  }
+}
+
+/**
+ * Gets a Supabase session using Clerk authentication.
+ * This should only be used in React components.
  */
 export async function getSupabaseSession() {
   const { getToken } = useAuth();
   const token = await getToken({ template: 'supabase' });
-
+  
   if (!token) {
-    console.warn('No Supabase token found from Clerk.');
-    // Attempt to get session directly from Supabase (might be expired or null)
-    const { data, error } = await supabase.auth.getSession();
-    if (error || !data.session) {
-      console.error('Error getting Supabase session:', error);
-      return null;
-    }
-    return data.session;
-  }
-
-  // Set the session for the Supabase client instance
-  const { error } = await supabase.auth.setSession({
-    access_token: token,
-    refresh_token: '' // Clerk manages refresh tokens
-  });
-
-  if (error) {
-    console.error('Error setting Supabase session with Clerk token:', error);
+    console.warn('No Supabase token found from Clerk');
     return null;
   }
-  
-  // Return the session object after setting it
-  const { data } = await supabase.auth.getSession();
-  return data.session;
+
+  return setSupabaseSessionFromJwt(token);
 } 

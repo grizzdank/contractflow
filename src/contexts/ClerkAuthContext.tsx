@@ -157,7 +157,7 @@ export function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
       console.log(`[ClerkAuthProvider][Effect2] Conditions met for user: ${user.id}. Starting Supabase sync.`);
       setAuthState(prev => ({ ...prev, isSupabaseLoading: true, error: undefined }));
 
-      // --- Introduce a minimal delay before getToken --- 
+      // --- Introduce a minimal delay before getToken ---
       setTimeout(async () => {
         console.log('[ClerkAuthProvider][Effect2] Executing sync logic after minimal delay.');
         let supabaseToken: string | null = null;
@@ -165,30 +165,36 @@ export function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
           // 1. Get Supabase token
           if (!clerk.session) throw new Error('Clerk session missing during Supabase sync');
           console.log("[ClerkAuthProvider][Effect2] Attempting to get Supabase token.");
-          supabaseToken = await clerk.session.getToken();
+          supabaseToken = await clerk.session.getToken(); // Use template if needed: { template: 'supabase' } ? Check if necessary
           if (!supabaseToken) throw new Error('Received null Supabase token from Clerk');
-          const decodedToken = JSON.parse(atob(supabaseToken.split('.')[1]));
+
+          // Decode the token to access claims
+          const decodedToken = JSON.parse(atob(supabaseToken.split('.')[1])); // Consider using jwtDecode library for safety
           console.log("[ClerkAuthProvider][Effect2] Decoded Supabase Token Claims:", decodedToken);
 
           // 2. Set Supabase session
           await supabase.auth.setSession({ access_token: supabaseToken, refresh_token: '' });
           console.log("[ClerkAuthProvider][Effect2] Supabase client auth set.");
 
-          // 3. Fetch user role
-          console.log(`[ClerkAuthProvider][Effect2] Fetching role for user: ${user.id}...`);
-          const { role, organizationId } = await fetchUserRole(user.id);
-          console.log(`[ClerkAuthProvider][Effect2] Fetched role: ${role}, Org ID: ${organizationId}`);
+          // 3. GET ROLE AND ORG ID DIRECTLY FROM TOKEN
+          const orgData = decodedToken.o || {}; // Get the 'o' claim, default to empty object if missing
+          const tokenRole = orgData.rol || 'viewer'; // Get the role from token, default to 'viewer' if missing
+          const tokenOrgId = orgData.id || null; // Get the org ID from token
+
+          // Map the token role string ('admin') to your internal UserRole enum
+          const mappedRole = mapDatabaseRoleToUserRole(tokenRole);
+          console.log(`[ClerkAuthProvider][Effect2] Role from token: ${tokenRole}, Mapped role: ${mappedRole}, Org ID: ${tokenOrgId}`);
 
           const userData: AuthUser = {
             id: user.id,
             email: user.primaryEmailAddress?.emailAddress || '',
-            role,
-            organizationId,
+            role: mappedRole, // Use the role derived from the token
+            organizationId: tokenOrgId, // Use the org ID from the token
             createdAt: new Date(user.createdAt).toISOString(),
             updatedAt: new Date(user.lastSignInAt || user.updatedAt || user.createdAt).toISOString(),
           };
 
-          // 4. Update final state (important: also update isSignedIn in state here)
+          // 4. Update final state
           setAuthState(prev => ({
             ...prev,
             user: userData,
