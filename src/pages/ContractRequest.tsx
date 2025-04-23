@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useContext } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,15 +15,30 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import Navigation from "@/components/Navigation";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { createAuthenticatedSupabaseClient } from "@/lib/supabase/client";
+import { Upload } from "lucide-react";
+import { ClerkAuthContext } from "@/contexts/ClerkAuthContext";
+import { Database } from "@/lib/supabase/types";
 
-type ContractType = "grant" | "services" | "goods" | "sponsorship" | "amendment" | "vendor_agreement" | "interagency_agreement" | "mou" | "sole_source" | "rfp";
+// Define the enum types based on Database definition
+type ContractStatusEnum = Database["public"]["Enums"]["contract_status"];
+type ContractTypeEnum = Database["public"]["Enums"]["contract_type"];
+
+// Define the frontend type alias separately if needed for dropdown values
+type FrontendContractType = "grant" | "services" | "goods" | "sponsorship" | "amendment" | "vendor_agreement" | "interagency_agreement" | "mou" | "sole_source" | "rfp";
 
 const ContractRequest = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const { getToken, user } = useAuth();
+  const authContext = useContext(ClerkAuthContext);
+  const organizationId = authContext?.authState.user?.organizationId;
+
   const [formData, setFormData] = useState({
     requestTitle: "",
     description: "",
-    contractType: "" as ContractType,
+    contractType: "" as FrontendContractType,
     amendmentNumber: "",
     department: "",
     contractAdmin: "",
@@ -38,9 +53,8 @@ const ContractRequest = () => {
     signatoryName: "",
     signatoryEmail: "",
     sowFiles: [] as File[],
-    status: "Requested" as "Requested" | "Draft" | "Review" | "InSignature" | "ExecutedActive" | "ExecutedExpired",
+    status: "new" as ContractStatusEnum,
   });
-  const { toast } = useToast();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -126,6 +140,78 @@ Payment Schedule: [Detail payment milestones]
       
       // Log the form data for debugging
       console.log('Form data submitted:', formData);
+
+      if (!user?.emailAddresses?.[0]?.emailAddress) {
+        throw new Error('User email not found');
+      }
+      // Ensure organizationId is available
+      if (!organizationId) {
+        throw new Error('Organization ID not found. Cannot create contract.');
+      }
+
+      // Get authenticated Supabase client
+      const supabase = await createAuthenticatedSupabaseClient(getToken);
+      console.log('Attempting to insert contract into database...');
+
+      // Helper function to map frontend type to DB enum
+      const mapFrontendTypeToDb = (frontendType: FrontendContractType): ContractTypeEnum => {
+        switch (frontendType) {
+          case 'services': return 'service';
+          case 'interagency_agreement': return 'iaa'; 
+          case 'vendor_agreement': return 'vendor';
+          // Add other mappings if frontend values differ from DB enum values
+          // For types where frontend value matches DB enum (e.g., 'mou', 'sponsorship')
+          case 'mou':
+          case 'sponsorship':
+          // case 'nda': // If you add these to frontend
+          // case 'license':
+          // case 'employment':
+          // case 'product':
+            return frontendType as ContractTypeEnum; // Assuming direct match
+          default:
+            console.warn(`Unsupported contract type mapping for: ${frontendType}. Defaulting to 'other'.`);
+            return 'other'; // Default or throw error if unmapped type is invalid
+        }
+      };
+
+      // Map form data to database schema
+      const contractData = {
+        title: formData.requestTitle,
+        description: formData.description,
+        type: mapFrontendTypeToDb(formData.contractType),
+        department: formData.department,
+        amount: parseFloat(formData.nte),
+        start_date: formData.startDate,
+        end_date: formData.endDate,
+        accounting_codes: formData.accountingCodes,
+        vendor: formData.vendorName,
+        vendor_email: formData.vendorEmail,
+        vendor_phone: formData.vendorPhone,
+        vendor_address: formData.vendorAddress,
+        signatory_name: formData.signatoryName,
+        signatory_email: formData.signatoryEmail,
+        status: formData.status as ContractStatusEnum,
+        contract_number: contractNumber,
+        creator_email: user.emailAddresses[0].emailAddress,
+        creator_id: user.id,
+        organization_id: organizationId,
+      };
+
+      console.log('Data being sent to Supabase:', contractData);
+
+      // Insert the contract data
+      const { data, error } = await supabase
+        .from('contracts')
+        .insert([contractData])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Supabase insert error:', error);
+        throw error;
+      }
+
+      console.log('Contract inserted successfully:', data);
       
       // Show success toast
       toast({
@@ -134,17 +220,16 @@ Payment Schedule: [Detail payment milestones]
         duration: 5000,
       });
 
-      // Navigate to contracts page after a delay
-      setTimeout(() => {
-        navigate('/contracts');
-      }, 2000);
+      // Navigate to contracts page after successful insertion
+      navigate('/contracts');
 
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error submitting contract:', error);
       toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try again.",
+        title: "Error Submitting Contract",
+        description: error instanceof Error ? error.message : "An unexpected error occurred. Please try again.",
         variant: "destructive",
+        duration: 5000,
       });
     }
   };
@@ -186,7 +271,7 @@ Payment Schedule: [Detail payment milestones]
                     <span className="text-gray-700">Contract Type</span>
                     <Select
                       value={formData.contractType}
-                      onValueChange={(value: ContractType) => setFormData({ ...formData, contractType: value })}
+                      onValueChange={(value: FrontendContractType) => setFormData({ ...formData, contractType: value })}
                     >
                       <SelectTrigger className="mt-1 w-full">
                         <SelectValue placeholder="Select contract type" />
@@ -417,7 +502,7 @@ Payment Schedule: [Detail payment milestones]
                         multiple
                       />
                       <div className="space-y-2">
-                        <File className="h-8 w-8 mx-auto text-gray-400" />
+                        <Upload className="h-8 w-8 mx-auto text-gray-400" />
                         <div className="text-sm text-gray-600">
                           <span className="text-emerald-600 font-medium">Click to upload</span> or drag
                           and drop

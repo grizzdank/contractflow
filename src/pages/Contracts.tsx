@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,9 +13,13 @@ import {
 import { FileText, Search, Filter, CheckCircle, Clock, Edit, Users, User } from "lucide-react";
 import Navigation from "@/components/Navigation";
 import { Contract } from "@/domain/types/Contract";
-import { contractService } from "@/lib/dataService";
 import { toast } from "@/components/ui/use-toast";
-import { supabase } from "@/lib/supabase/client";
+import { createAuthenticatedSupabaseClient } from "@/lib/supabase/client";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { ClerkAuthContext } from "@/contexts/ClerkAuthContext";
+
+type ContractStatus = Contract['status'];
+type ContractType = 'grant' | 'services' | 'goods' | 'sponsorship' | 'amendment' | 'vendor_agreement' | 'interagency_agreement' | 'mou' | 'sole_source' | 'rfp';
 
 const getContractSuffix = (type: Contract['type'], amendmentNumber?: string): string => {
   switch (type) {
@@ -43,6 +47,70 @@ const getContractSuffix = (type: Contract['type'], amendmentNumber?: string): st
   }
 };
 
+const mapDbStatusToFilterValue = (dbStatus: string | null | undefined): ContractStatus => {
+  switch (dbStatus) {
+    case 'new': return 'Requested';
+    case 'draft': return 'Draft';
+    case 'in_coord': return 'Review';
+    case 'in_signature': return 'InSignature';
+    case 'active': return 'ExecutedActive';
+    case 'executed': return 'ExecutedActive';
+    case 'expired': return 'ExecutedExpired';
+    default:
+      console.warn(`[Contracts] Unmapped DB status: ${dbStatus}. Falling back to 'Requested'.`);
+      return 'Requested';
+  }
+};
+
+const mapDbTypeToFilterValue = (dbType: string | null | undefined): ContractType => {
+  switch (dbType) {
+    case 'grant': return 'grant';
+    case 'service': return 'services';
+    case 'goods': return 'goods';
+    case 'product': return 'goods';
+    case 'sponsorship': return 'sponsorship';
+    case 'amendment': return 'amendment';
+    case 'vendor': return 'vendor_agreement';
+    case 'iaa': return 'interagency_agreement';
+    case 'mou': return 'mou';
+    case 'sole_source': return 'sole_source';
+    case 'rfp': return 'rfp';
+    default:
+      console.warn(`[Contracts] Unmapped DB type: ${dbType}. Falling back to 'services'.`);
+      return 'services';
+  }
+};
+
+const mapDbToContract = (data: any): Contract => {
+  const mappedStatus = mapDbStatusToFilterValue(data.status);
+  const mappedType = mapDbTypeToFilterValue(data.type);
+
+  return {
+    id: data.id,
+    contractNumber: data.contract_number,
+    title: data.title,
+    description: data.description,
+    vendor: data.vendor,
+    amount: data.amount,
+    startDate: data.start_date,
+    endDate: data.end_date,
+    status: mappedStatus,
+    type: mappedType,
+    department: data.department,
+    accountingCodes: data.accounting_codes,
+    vendorEmail: data.vendor_email,
+    vendorPhone: data.vendor_phone,
+    vendorAddress: data.vendor_address,
+    signatoryName: data.signatory_name,
+    signatoryEmail: data.signatory_email,
+    attachments: data.attachments || [],
+    comments: data.comments || [],
+    creatorId: data.creator_id,
+    creatorEmail: data.creator_email,
+    createdAt: data.created_at
+  };
+};
+
 const Contracts = () => {
   const [filters, setFilters] = useState({
     search: "",
@@ -51,144 +119,86 @@ const Contracts = () => {
     department: "all",
   });
   const [contracts, setContracts] = useState<Contract[]>([]);
+  const [availableDepartments, setAvailableDepartments] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreatingContract, setIsCreatingContract] = useState(false);
+  
+  const { getToken } = useAuth();
+  const authContext = useContext(ClerkAuthContext);
+  const organizationId = authContext?.authState.user?.organizationId;
 
-  useEffect(() => {
-    const fetchContracts = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        console.log('Attempting to fetch contracts...');
-        const { data, error } = await contractService.getContracts();
-        console.log('Supabase connection test - Contracts data:', data, 'Error:', error);
-        
-        if (error) {
-          console.error('Error details:', JSON.stringify(error, null, 2));
-          console.error('Error code:', error.code);
-          console.error('Error message:', error.message);
-          console.error('Error hint:', error.hint);
-          throw error;
-        }
-        
-        setContracts(data || []);
-      } catch (error: any) {
-        console.error('Error fetching contracts:', error);
-        console.error('Error type:', typeof error);
-        console.error('Error properties:', Object.keys(error));
-        
-        if (error.code === '42501') {
-          setError('Permission denied. RLS policy is blocking access.');
-        } else {
-          setError('Failed to load contracts');
-        }
-        
-        toast({
-          title: "Error",
-          description: `Failed to load contracts: ${error.message || 'Unknown error'}`,
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const loadContracts = async () => {
+    console.log('[Contracts] loadContracts called');
+    if (!getToken) {
+      console.error('[Contracts] getToken function not available from useAuth');
+      setError('Authentication not ready.');
+      setIsLoading(false);
+      return;
+    }
 
-    fetchContracts();
-  }, []);
+    if (!organizationId) {
+      console.warn('[Contracts] Organization ID not available yet. Cannot fetch contracts.');
+      setContracts([]); 
+      setIsLoading(false); 
+      setError('Organization details not loaded yet.');
+      return; 
+    }
+    console.log(`[Contracts] Fetching contracts for Org ID: ${organizationId}`);
 
-  const createTestContract = async () => {
+    setIsLoading(true);
+    setError(null);
     try {
-      setIsCreatingContract(true);
-      console.log('Creating test contract...');
-      
-      // Generate a random contract number with prefix CF and 6 digits
-      const contractNumber = `CF${Math.floor(100000 + Math.random() * 900000)}`;
-      
-      // Format dates as YYYY-MM-DD for the date type in Postgres
-      const today = new Date();
-      const nextYear = new Date();
-      nextYear.setFullYear(today.getFullYear() + 1);
-      
-      const formattedStartDate = today.toISOString().split('T')[0];
-      const formattedEndDate = nextYear.toISOString().split('T')[0];
-      
-      // Use snake_case for database column names and ensure all required fields are provided
-      const testContract = {
-        contract_number: contractNumber,
-        title: "Test Contract",
-        vendor: "Test Vendor Inc.",
-        amount: 10000,
-        start_date: formattedStartDate,
-        end_date: formattedEndDate,
-        status: "draft",
-        type: "services",
-        department: "IT",
-        creator_id: null, // Set to null to work with anonymous policy
-        creator_email: "test@example.com",
-        description: "This is a test contract created for testing purposes.",
-      };
-      
-      console.log('Test contract data:', testContract);
-      
-      const { data, error } = await supabase
+      const authenticatedSupabase = await createAuthenticatedSupabaseClient(getToken);
+      console.log('[Contracts] Authenticated Supabase client created for fetch.');
+
+      const { data, error: fetchError } = await authenticatedSupabase
         .from('contracts')
-        .insert(testContract)
-        .select()
-        .single();
-      
-      console.log('Insert response:', { data, error });
-      
-      if (error) {
-        console.error('Error details:', JSON.stringify(error, null, 2));
-        console.error('Error code:', error.code);
-        console.error('Error message:', error.message);
-        console.error('Error hint:', error.hint);
-        throw error;
+        .select('*')
+        .eq('organization_id', organizationId);
+
+      console.log('[Contracts] Fetch response:', { data, fetchError });
+
+      if (fetchError) {
+        console.error('[Contracts] Error fetching contracts:', fetchError);
+        throw fetchError;
       }
       
+      const mappedContracts = (data || []).map(mapDbToContract);
+      setContracts(mappedContracts);
+      console.log('[Contracts] Mapped contracts set:', mappedContracts);
+      
+      const uniqueDepts = Array.from(
+        new Set(
+          mappedContracts
+            .map(c => c.department)
+            .filter((dept): dept is string => typeof dept === 'string' && dept.trim() !== '')
+        )
+      ).sort();
+      setAvailableDepartments(uniqueDepts);
+      console.log('[Contracts] Available departments set:', uniqueDepts);
+      
+    } catch (err: any) {
+      console.error('[Contracts] Error in loadContracts process:', err);
+      setError(`Failed to load contracts: ${err.message || 'Unknown error'}`);
       toast({
-        title: "Success",
-        description: `Test contract ${contractNumber} created successfully!`,
-      });
-      
-      // Refresh the contracts list
-      loadContracts();
-    } catch (error: any) {
-      console.error('Error creating test contract:', error);
-      
-      let errorMessage = 'Failed to create test contract';
-      if (error.code === '42501') {
-        errorMessage = 'Permission denied. RLS policy is blocking the insert operation.';
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      toast({
-        title: "Error",
-        description: errorMessage,
+        title: "Error Loading Contracts",
+        description: err.message || 'An unexpected error occurred.',
         variant: "destructive",
       });
     } finally {
-      setIsCreatingContract(false);
+      setIsLoading(false);
+      console.log('[Contracts] loadContracts finished');
     }
   };
 
-  const loadContracts = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
+  useEffect(() => {
+    console.log('[Contracts] useEffect running');
+    loadContracts();
+  }, [getToken, organizationId]);
 
-      const { data, error } = await contractService.getContracts();
-      
-      if (error) throw error;
-      setContracts(data || []);
-    } catch (err) {
-      console.error('Error loading contracts:', err);
-      setError('Failed to load contracts');
-    } finally {
-      setIsLoading(false);
-    }
+  const createTestContract = async () => {
+    alert('createTestContract needs refactoring to use authenticated client and organization ID.');
   };
 
   const getStatusIcon = (status: Contract['status']) => {
@@ -229,17 +239,30 @@ const Contracts = () => {
     }
   };
 
+  console.log("[Contracts] Current Filters State:", filters);
+  console.log("[Contracts] First Raw Contract Data (if any):", contracts.length > 0 ? contracts[0] : 'N/A');
+
   const filteredContracts = contracts.filter((contract) => {
+    const searchLower = filters.search.toLowerCase();
+    const deptFilterLower = filters.department.toLowerCase();
+
+    const titleMatch = contract.title?.toLowerCase().includes(searchLower);
+    const vendorMatch = contract.vendor?.toLowerCase().includes(searchLower);
+    const numberMatch = contract.contractNumber?.toLowerCase().includes(searchLower);
+    
+    const statusMatch = filters.status === "all" || contract.status === filters.status;
+    const typeMatch = filters.type === "all" || contract.type === filters.type;
+    const departmentMatch = filters.department === "all" || contract.department === filters.department;
+
     return (
-      (filters.search === "" ||
-        contract.title.toLowerCase().includes(filters.search.toLowerCase()) ||
-        contract.vendor.toLowerCase().includes(filters.search.toLowerCase()) ||
-        contract.contractNumber.toLowerCase().includes(filters.search.toLowerCase())) &&
-      (filters.status === "all" || contract.status === filters.status) &&
-      (filters.type === "all" || contract.type === filters.type) &&
-      (filters.department === "all" || contract.department === filters.department)
+      (filters.search === "" || titleMatch || vendorMatch || numberMatch) &&
+      statusMatch &&
+      typeMatch &&
+      departmentMatch
     );
   });
+
+  console.log("[Contracts] Filtered Contracts Count:", filteredContracts.length);
 
   return (
     <>
@@ -351,14 +374,16 @@ const Contracts = () => {
                           setFilters({ ...filters, department: value })
                         }
                       >
-                        <SelectTrigger className="w-[140px]">
+                        <SelectTrigger className="w-[160px]">
                           <SelectValue placeholder="Department" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">All Departments</SelectItem>
-                          <SelectItem value="IT">IT</SelectItem>
-                          <SelectItem value="Marketing">Marketing</SelectItem>
-                          <SelectItem value="Sales">Sales</SelectItem>
+                          {availableDepartments.map((dept) => (
+                            <SelectItem key={dept} value={dept}>
+                              {dept}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>

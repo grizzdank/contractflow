@@ -6,6 +6,7 @@
 import { mockContracts } from "@/lib/mockData";
 import { supabase } from "@/lib/supabase/client";
 import { Contract } from "@/domain/types/Contract";
+import { SupabaseClient } from '@supabase/supabase-js';
 
 // Helper function to map database fields to Contract type
 const mapDbToContract = (data: any): Contract => {
@@ -196,16 +197,27 @@ export const contractService = {
   
   async uploadExecutedDocument(contractId: string, file: File) {
     try {
-      const fileExt = file.name.split('.').pop();
-      const filePath = `${contractId}/${crypto.randomUUID()}.${fileExt}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('executed_documents')
-        .upload(filePath, file);
+      const fileExtension = file.name.split('.').pop();
+      const fileName = `${crypto.randomUUID()}.${fileExtension}`;
+      const filePath = `${contractId}/${fileName}`;
 
-      if (uploadError) throw uploadError;
+      console.log(`[dataService] Uploading executed doc. Contract: ${contractId}, Path: ${filePath}`);
 
-      const { data, error: dbError } = await supabase
+      const { data, error } = await supabase.storage
+        .from('executed-documents')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (error) {
+        console.error('[dataService] Supabase storage upload error:', error);
+        throw error;
+      }
+
+      console.log('[dataService] Upload successful:', data);
+
+      const { data: insertedData, error: dbError } = await supabase
         .from('contract_coi_files')
         .insert({
           contract_id: contractId,
@@ -227,10 +239,13 @@ export const contractService = {
           performed_by_email: 'current.user@example.com', // TODO: Replace with actual user email
         });
       
-      return { data, error: null };
-    } catch (error) {
-      console.error('Error uploading executed document:', error);
-      return { data: null, error };
+      return { data: insertedData, error: null };
+    } catch (error: any) {
+      console.error('[dataService] Exception during upload:', error);
+      const errorResponse = error.message.includes('Bucket not found')
+        ? { statusCode: '404', error: 'Bucket not found', message: 'Bucket not found' } 
+        : { statusCode: error.statusCode || '500', error: error.error || 'Upload Failed', message: error.message };
+      return { data: null, error: errorResponse };
     }
   },
   

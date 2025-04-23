@@ -1,9 +1,8 @@
-
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send } from "lucide-react";
 
-interface Comment {
+export interface Comment {
   id: string;
   userId: string;
   userName: string;

@@ -8,8 +8,13 @@ import { Database } from "@/lib/supabase/types";
 type DbContractCoiFile = Database['public']['Tables']['contract_coi_files']['Row'];
 type DbAuditTrailInsert = Database['public']['Tables']['contract_audit_trail']['Insert'];
 
-const COI_BUCKET = 'coi_files'; // Define bucket names
-const EXECUTED_DOC_BUCKET = 'executed_documents';
+// Define constants for Supabase bucket names
+export const COI_BUCKET = 'coi_files';
+export const EXECUTED_DOC_BUCKET = 'executed-documents';
+export const TEMPLATE_BUCKET = 'contract-templates';
+export const ATTACHMENT_BUCKET = 'general-attachments';
+
+// TODO: Add more constants as needed, e.g., for templates, etc.
 
 export class FileService implements IFileService {
   async getContractFiles(contractId: string): Promise<{ data: DbContractCoiFile[] | null; error: any }> {
