@@ -1,10 +1,10 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { useClerkUser } from '@/contexts/ClerkAuthContext';
+import { useClerkAuth } from '@/contexts/ClerkAuthContext';
 
 export default function Unauthorized() {
   const navigate = useNavigate();
-  const user = useClerkUser();
+  const { user } = useClerkAuth();
   
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-green-50 via-white to-orange-50 p-4">
@@ -18,7 +18,8 @@ export default function Unauthorized() {
           
           {user && (
             <p className="text-sm bg-gray-100 p-3 rounded">
-              You are signed in as <span className="font-semibold">{user.email}</span> with role <span className="font-semibold">{user.role}</span>.
+              You are signed in as <span className="font-semibold">{user.primaryEmail || 'N/A'}</span> 
+              with role <span className="font-semibold">{user.role || 'Unknown'}</span>.
             </p>
           )}
         </div>

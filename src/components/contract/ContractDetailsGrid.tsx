@@ -9,13 +9,13 @@ import { ContractCreator } from "@/components/contract/components/ContractCreato
 interface ContractDetailsGridProps {
   contract: Contract | null;
   isEditing: boolean;
-  onContractChange: (updates: Partial<Contract>) => void;
+  onFieldChange: (field: keyof Contract, value: any) => void;
 }
 
 export function ContractDetailsGrid({
   contract,
   isEditing,
-  onContractChange,
+  onFieldChange,
 }: ContractDetailsGridProps) {
   if (!contract) {
     return <div>Loading contract details...</div>;
@@ -27,7 +27,7 @@ export function ContractDetailsGrid({
         <ContractBasicInfo
           contract={contract}
           isEditing={isEditing}
-          onDescriptionChange={(description) => onContractChange({ description })}
+          onDescriptionChange={(description) => onFieldChange('description', description)}
         />
 
         <ContractCreator
@@ -38,13 +38,13 @@ export function ContractDetailsGrid({
         <ContractStatus
           status={contract.status}
           isEditing={isEditing}
-          onStatusChange={(status) => onContractChange({ status })}
+          onStatusChange={(status) => onFieldChange('status', status)}
         />
 
         <ContractAssignee
           assignedTo={contract.assignedTo}
           isEditing={isEditing}
-          onAssigneeChange={(assignedTo) => onContractChange({ assignedTo })}
+          onAssigneeChange={(assignedTo) => onFieldChange('assignedTo', assignedTo)}
         />
       </div>
 

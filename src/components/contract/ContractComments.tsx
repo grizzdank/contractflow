@@ -15,6 +15,7 @@ interface ContractCommentsProps {
   newComment: string;
   onNewCommentChange: (comment: string) => void;
   onAddComment: () => void;
+  currentUserId?: string | null;
 }
 
 export function ContractComments({
@@ -22,6 +23,7 @@ export function ContractComments({
   newComment,
   onNewCommentChange,
   onAddComment,
+  currentUserId
 }: ContractCommentsProps) {
   return (
     <div>

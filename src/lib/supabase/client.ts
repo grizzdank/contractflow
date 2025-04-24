@@ -50,41 +50,50 @@ console.log('Base Supabase client initialized (unauthenticated).');
 // It should be called within a component or context where useAuth() is available.
 // Note: This creates a NEW client instance each time. Consider memoization or context if performance is critical.
 export const createAuthenticatedSupabaseClient = async (
+  // CORRECTED Signature: Accept getToken function directly
   getToken: (options?: { template?: string }) => Promise<string | null>
 ): Promise<SupabaseClient<Database>> => {
-  console.log('[createAuthenticatedSupabaseClient] Attempting to create authenticated client...');
-  try {
-    // IMPORTANT: Use the standard getToken without template for the new integration method
-    const token = await getToken();
-    if (!token) {
-       console.error('[createAuthenticatedSupabaseClient] Clerk token is null. Cannot create authenticated client.');
-       // Returning the base client might be confusing. Throwing error is clearer.
-       throw new Error('Clerk token not available for authenticated Supabase client');
-    }
-    // Avoid logging the full token in production
-    // console.log('[createAuthenticatedSupabaseClient] Successfully retrieved Clerk token.');
+  console.log("[createAuthenticatedSupabaseClient] Attempting to create client...");
 
-    // Create a new Supabase client instance configured with the dynamic token
-    const authSupabase = createClient<Database>(supabaseUrl!, supabaseAnonKey!, {
+  // CORRECTED Check: Validate the passed getToken function
+  if (typeof getToken !== 'function') {
+    console.error("[createAuthenticatedSupabaseClient] Invalid getToken function provided.");
+    throw new Error("A valid getToken function is required.");
+  }
+
+  try {
+    // CORRECTED Call: Use the passed getToken function WITHOUT the template
+    console.log("[createAuthenticatedSupabaseClient] Fetching Clerk JWT...");
+    const token = await getToken(); // NO TEMPLATE OPTION
+    console.log("[createAuthenticatedSupabaseClient] Clerk JWT fetched (first few chars):", token?.substring(0, 10));
+
+    if (!token) {
+      console.error("[createAuthenticatedSupabaseClient] Failed to retrieve Clerk JWT.");
+      throw new Error('Failed to retrieve Clerk JWT.');
+    }
+
+    // Create a new Supabase client instance with the JWT
+    console.log("[createAuthenticatedSupabaseClient] Creating Supabase client with JWT...");
+    const authenticatedClient = createClient<Database>(supabaseUrl!, supabaseAnonKey!, {
       global: {
         headers: {
-          Authorization: `Bearer ${token}`, // Pass token via Authorization header
+          Authorization: `Bearer ${token}`, // Use the fetched token
         },
       },
-      // Keep Supabase auth mechanisms disabled
-      auth: {
+       // Ensure Supabase doesn't interfere with Clerk's auth
+       auth: {
          persistSession: false,
          autoRefreshToken: false,
          detectSessionInUrl: false,
-      }
+       }
     });
-    console.log('[createAuthenticatedSupabaseClient] Authenticated Supabase client instance created.');
-    return authSupabase;
+    console.log("[createAuthenticatedSupabaseClient] Authenticated Supabase client created successfully.");
+    return authenticatedClient;
 
   } catch (error) {
-    console.error('[createAuthenticatedSupabaseClient] Error creating authenticated client:', error);
-    // Rethrow to allow caller to handle (e.g., show error message to user)
-    throw error;
+    console.error('[createAuthenticatedSupabaseClient] Error retrieving Clerk token or creating client:', error);
+    // Re-throw the error to be handled by the caller
+    throw new Error(`Failed to create authenticated Supabase client: ${error instanceof Error ? error.message : String(error)}`);
   }
 };
 

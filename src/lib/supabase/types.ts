@@ -56,8 +56,9 @@ export type Database = {
           changes: Json | null
           contract_id: string
           id: string
+          organization_id: string
           performed_at: string
-          performed_by: string | null
+          performed_by: string
           performed_by_email: string
         }
         Insert: {
@@ -65,8 +66,9 @@ export type Database = {
           changes?: Json | null
           contract_id: string
           id?: string
+          organization_id: string
           performed_at?: string
-          performed_by?: string | null
+          performed_by: string
           performed_by_email: string
         }
         Update: {
@@ -74,11 +76,20 @@ export type Database = {
           changes?: Json | null
           contract_id?: string
           id?: string
+          organization_id?: string
           performed_at?: string
-          performed_by?: string | null
+          performed_by?: string
           performed_by_email?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_organization"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contract_coi_files: {
         Row: {
@@ -88,8 +99,9 @@ export type Database = {
           file_path: string
           id: string
           is_executed_contract: boolean | null
+          organization_id: string
           uploaded_at: string
-          uploaded_by: string | null
+          uploaded_by: string
         }
         Insert: {
           contract_id: string
@@ -98,8 +110,9 @@ export type Database = {
           file_path: string
           id?: string
           is_executed_contract?: boolean | null
+          organization_id: string
           uploaded_at?: string
-          uploaded_by?: string | null
+          uploaded_by: string
         }
         Update: {
           contract_id?: string
@@ -108,10 +121,19 @@ export type Database = {
           file_path?: string
           id?: string
           is_executed_contract?: boolean | null
+          organization_id?: string
           uploaded_at?: string
-          uploaded_by?: string | null
+          uploaded_by?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_organization"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contracts: {
         Row: {

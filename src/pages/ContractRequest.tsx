@@ -1,12 +1,11 @@
-import { useState, useContext } from "react";
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ClipboardCheck, File, Send, User, Building, DollarSign, Calendar, Briefcase, FileText, Download, X } from "lucide-react";
+import { ClipboardCheck, File, Send, User, Building, DollarSign, Calendar, Briefcase, FileText, Download, X, Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabase/client";
 import {
   Select,
   SelectContent,
@@ -15,11 +14,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import Navigation from "@/components/Navigation";
-import { useAuth } from "@/lib/hooks/useAuth";
+import { useClerkAuth } from "@/contexts/ClerkAuthContext";
 import { createAuthenticatedSupabaseClient } from "@/lib/supabase/client";
 import { Upload } from "lucide-react";
-import { ClerkAuthContext } from "@/contexts/ClerkAuthContext";
 import { Database } from "@/lib/supabase/types";
+import { ContractService } from "@/services/ContractService";
 
 // Define the enum types based on Database definition
 type ContractStatusEnum = Database["public"]["Enums"]["contract_status"];
@@ -28,12 +27,15 @@ type ContractTypeEnum = Database["public"]["Enums"]["contract_type"];
 // Define the frontend type alias separately if needed for dropdown values
 type FrontendContractType = "grant" | "services" | "goods" | "sponsorship" | "amendment" | "vendor_agreement" | "interagency_agreement" | "mou" | "sole_source" | "rfp";
 
+type DbContractInsert = Database['public']['Tables']['contracts']['Insert'];
+
 const ContractRequest = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { getToken, user } = useAuth();
-  const authContext = useContext(ClerkAuthContext);
-  const organizationId = authContext?.authState.user?.organizationId;
+  const { user, isLoading: isAuthLoading, getToken, error: authError } = useClerkAuth();
+  const organizationId = user?.organizationId;
+  const userEmail = user?.primaryEmail;
+  const supabaseUserId = user?.supabaseUserId;
 
   const [formData, setFormData] = useState({
     requestTitle: "",
@@ -53,8 +55,8 @@ const ContractRequest = () => {
     signatoryName: "",
     signatoryEmail: "",
     sowFiles: [] as File[],
-    status: "new" as ContractStatusEnum,
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -74,45 +76,7 @@ const ContractRequest = () => {
   };
 
   const downloadTemplate = () => {
-    const template = `Statement of Work Template
-
-1. Project Overview
-------------------
-[Briefly describe the project's purpose and objectives]
-
-2. Scope of Work
----------------
-[Detail the specific tasks, deliverables, and services to be provided]
-
-3. Timeline
-----------
-Start Date: [Insert Start Date]
-End Date: [Insert End Date]
-
-4. Deliverables
---------------
-[List all expected deliverables with descriptions and due dates]
-
-5. Requirements
--------------
-[Specify any technical, operational, or quality requirements]
-
-6. Payment Terms
---------------
-Total Not-to-Exceed Amount: [Insert Amount]
-Payment Schedule: [Detail payment milestones]
-
-7. Key Personnel
---------------
-[List key team members and their roles]
-
-8. Acceptance Criteria
---------------------
-[Define how deliverables will be evaluated and accepted]
-
-9. Additional Terms
------------------
-[Include any special conditions or requirements]`;
+    const template = `Statement of Work Template\n\n1. Project Overview\n------------------\n[Briefly describe the project\'s purpose and objectives]\n\n2. Scope of Work\n---------------\n[Detail the specific tasks, deliverables, and services to be provided]\n\n3. Timeline\n----------\nStart Date: [Insert Start Date]\nEnd Date: [Insert End Date]\n\n4. Deliverables\n--------------\n[List all expected deliverables with descriptions and due dates]\n\n5. Requirements\n-------------\n[Specify any technical, operational, or quality requirements]\n\n6. Payment Terms\n--------------\nTotal Not-to-Exceed Amount: [Insert Amount]\nPayment Schedule: [Detail payment milestones]\n\n7. Key Personnel\n--------------\n[List key team members and their roles]\n\n8. Acceptance Criteria\n--------------------\n[Define how deliverables will be evaluated and accepted]\n\n9. Additional Terms\n-----------------\n[Include any special conditions or requirements]`;
 
     const blob = new Blob([template], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -133,95 +97,109 @@ Payment Schedule: [Detail payment milestones]
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    
+    if (!getToken || !organizationId || !userEmail || !supabaseUserId) {
+        toast({
+          title: "Authentication Error",
+          description: "User authentication or organization details are missing. Please try logging in again.",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+    }
     
     try {
-      // Generate a contract number for display purposes
-      const contractNumber = `${formData.department.substring(0, 3).toUpperCase()}-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
-      
-      // Log the form data for debugging
-      console.log('Form data submitted:', formData);
+      const contractService = new ContractService(getToken, organizationId);
 
-      if (!user?.emailAddresses?.[0]?.emailAddress) {
-        throw new Error('User email not found');
-      }
-      // Ensure organizationId is available
-      if (!organizationId) {
-        throw new Error('Organization ID not found. Cannot create contract.');
-      }
-
-      // Get authenticated Supabase client
-      const supabase = await createAuthenticatedSupabaseClient(getToken);
-      console.log('Attempting to insert contract into database...');
-
-      // Helper function to map frontend type to DB enum
       const mapFrontendTypeToDb = (frontendType: FrontendContractType): ContractTypeEnum => {
         switch (frontendType) {
           case 'services': return 'service';
-          case 'interagency_agreement': return 'iaa'; 
+          case 'interagency_agreement': return 'iaa';
           case 'vendor_agreement': return 'vendor';
-          // Add other mappings if frontend values differ from DB enum values
-          // For types where frontend value matches DB enum (e.g., 'mou', 'sponsorship')
           case 'mou':
           case 'sponsorship':
-          // case 'nda': // If you add these to frontend
-          // case 'license':
-          // case 'employment':
-          // case 'product':
-            return frontendType as ContractTypeEnum; // Assuming direct match
+            return frontendType as ContractTypeEnum;
+          case 'grant': return 'other';
+          case 'goods': return 'product';
+          case 'amendment': return 'other';
+          case 'sole_source': return 'other';
+          case 'rfp': return 'other';
           default:
             console.warn(`Unsupported contract type mapping for: ${frontendType}. Defaulting to 'other'.`);
-            return 'other'; // Default or throw error if unmapped type is invalid
+            return 'other';
         }
       };
 
-      // Map form data to database schema
-      const contractData = {
+      const newContractPayload: Omit<DbContractInsert, 'id' | 'created_at' | 'contract_number' | 'status' | 'organization_id' | 'creator_id' | 'creator_email' | 'comments'> = {
         title: formData.requestTitle,
         description: formData.description,
         type: mapFrontendTypeToDb(formData.contractType),
         department: formData.department,
-        amount: parseFloat(formData.nte),
-        start_date: formData.startDate,
-        end_date: formData.endDate,
-        accounting_codes: formData.accountingCodes,
+        amount: parseFloat(formData.nte) || null,
+        start_date: formData.startDate || null,
+        end_date: formData.endDate || null,
+        accounting_codes: formData.accountingCodes || null,
         vendor: formData.vendorName,
         vendor_email: formData.vendorEmail,
-        vendor_phone: formData.vendorPhone,
-        vendor_address: formData.vendorAddress,
+        vendor_phone: formData.vendorPhone || null,
+        vendor_address: formData.vendorAddress || null,
         signatory_name: formData.signatoryName,
         signatory_email: formData.signatoryEmail,
-        status: formData.status as ContractStatusEnum,
-        contract_number: contractNumber,
-        creator_email: user.emailAddresses[0].emailAddress,
-        creator_id: user.id,
-        organization_id: organizationId,
       };
 
-      console.log('Data being sent to Supabase:', contractData);
+      console.log('Payload being sent to ContractService.createContract:', newContractPayload);
 
-      // Insert the contract data
-      const { data, error } = await supabase
-        .from('contracts')
-        .insert([contractData])
-        .select()
-        .single();
+      const { data: createdContract, error: createError } = await contractService.createContract(
+          newContractPayload, 
+          supabaseUserId, 
+          userEmail
+      );
 
-      if (error) {
-        console.error('Supabase insert error:', error);
-        throw error;
+      if (createError) {
+        console.error('Service createContract error:', createError);
+        throw createError;
       }
 
-      console.log('Contract inserted successfully:', data);
-      
-      // Show success toast
+      console.log('Contract created via service:', createdContract);
+      const newContractId = createdContract?.id;
+      const newContractNumber = createdContract?.contract_number;
+
+      if (newContractId && formData.sowFiles.length > 0) {
+          console.log(`Uploading ${formData.sowFiles.length} SOW files for contract ${newContractId}...`);
+          let uploadErrors = 0;
+          const uploadPromises = formData.sowFiles.map(file =>
+              contractService.uploadGeneralAttachment(
+                  newContractId,
+                  file,
+                  supabaseUserId!, 
+                  userEmail!      
+              ).catch(uploadErr => {
+                  console.error(`Failed to upload ${file.name}:`, uploadErr);
+                  uploadErrors++;
+                  return { error: uploadErr };
+              })
+          );
+          await Promise.allSettled(uploadPromises);
+          if (uploadErrors > 0) {
+              toast({ title: "File Upload Issues", /* ... */ variant: "destructive" });
+          } else {
+               toast({ title: "Attachments Uploaded", description: "All attached files were uploaded successfully." });
+          }
+      }
+
       toast({
         title: "Request Submitted Successfully",
-        description: `Your contract request ${contractNumber} has been sent to the ${formData.department} director for approval. You will be notified of any updates.`,
+        description: `Your contract request ${newContractNumber || '(Number pending)'} has been submitted.`,
         duration: 5000,
       });
 
-      // Navigate to contracts page after successful insertion
-      navigate('/contracts');
+      if (newContractNumber) {
+          navigate(`/contracts/${newContractNumber}`);
+      } else {
+          console.warn("Created contract did not return a contract number. Navigating to list.");
+          navigate('/contracts');
+      }
 
     } catch (error) {
       console.error('Error submitting contract:', error);
@@ -231,13 +209,43 @@ Payment Schedule: [Detail payment milestones]
         variant: "destructive",
         duration: 5000,
       });
+    } finally {
+       setIsSubmitting(false);
     }
   };
+
+  if (isAuthLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="ml-2">Loading authentication...</p>
+      </div>
+    );
+  }
+
+  if (authError) {
+     return (
+       <div className="flex h-screen items-center justify-center text-red-600">
+         <p>Authentication Error: {authError.message}</p>
+       </div>
+     );
+  }
+
+  if (!organizationId) {
+      return (
+         <div className="flex h-screen items-center justify-center text-red-600">
+           <Navigation />
+           <div className="flex-1 flex items-center justify-center">
+              <p>Organization details missing. Cannot create contract request.</p>
+           </div>
+         </div>
+      );
+  }
 
   return (
     <>
       <Navigation />
-      <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-orange-50 pt-16">
+      <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-orange-50 pt-16 pb-16">
         <div className="max-w-3xl mx-auto space-y-8 fade-in p-6">
           <header className="text-center space-y-4">
             <div className="inline-block px-4 py-1 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-full text-sm font-medium">
@@ -251,307 +259,167 @@ Payment Schedule: [Detail payment milestones]
             </p>
           </header>
 
-          <Card className="p-6 glass-panel">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <label className="block">
-                    <span className="text-gray-700">Request Title</span>
-                    <Input
-                      type="text"
-                      required
-                      value={formData.requestTitle}
-                      onChange={(e) => setFormData({ ...formData, requestTitle: e.target.value })}
-                      className="mt-1 block w-full"
-                      placeholder="Brief title for your request"
-                    />
-                  </label>
+          <form onSubmit={handleSubmit} className="space-y-8">
+             <Card className="p-6 bg-white shadow-sm">
+               <h2 className="text-xl font-semibold mb-6 border-b pb-2 flex items-center"><FileText className="h-5 w-5 mr-2 text-primary"/> Contract Details</h2>
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div className="space-y-2">
+                    <label htmlFor="requestTitle" className="text-sm font-medium">Request Title *</label>
+                    <Input id="requestTitle" placeholder="e.g., Marketing Services Agreement" value={formData.requestTitle} onChange={e => setFormData({...formData, requestTitle: e.target.value})} required />
+                  </div>
 
-                  <label className="block">
-                    <span className="text-gray-700">Contract Type</span>
-                    <Select
-                      value={formData.contractType}
-                      onValueChange={(value: FrontendContractType) => setFormData({ ...formData, contractType: value })}
-                    >
-                      <SelectTrigger className="mt-1 w-full">
+                  <div className="space-y-2">
+                    <label htmlFor="contractType" className="text-sm font-medium">Contract Type *</label>
+                    <Select value={formData.contractType} onValueChange={(value: FrontendContractType) => setFormData({...formData, contractType: value})} required>
+                      <SelectTrigger id="contractType">
                         <SelectValue placeholder="Select contract type" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="grant">Grant</SelectItem>
-                        <SelectItem value="services">Services</SelectItem>
-                        <SelectItem value="goods">Goods</SelectItem>
-                        <SelectItem value="sponsorship">Sponsorship</SelectItem>
-                        <SelectItem value="amendment">Amendment</SelectItem>
-                        <SelectItem value="vendor_agreement">Vendor Agreement</SelectItem>
-                        <SelectItem value="interagency_agreement">InterAgency Agreement</SelectItem>
-                        <SelectItem value="mou">MOU</SelectItem>
-                        <SelectItem value="sole_source">Sole/Single Source</SelectItem>
-                        <SelectItem value="rfp">RFP</SelectItem>
-                      </SelectContent>
+                         <SelectItem value="services">Services (PSA)</SelectItem>
+                         <SelectItem value="goods">Goods (PSA)</SelectItem>
+                         <SelectItem value="grant">Grant</SelectItem>
+                         <SelectItem value="sponsorship">Sponsorship</SelectItem>
+                         <SelectItem value="amendment">Amendment</SelectItem>
+                         <SelectItem value="vendor_agreement">Vendor Agreement</SelectItem>
+                         <SelectItem value="interagency_agreement">Interagency Agreement</SelectItem>
+                         <SelectItem value="mou">MOU</SelectItem>
+                         <SelectItem value="sole_source">Sole/Single Source</SelectItem>
+                         <SelectItem value="rfp">RFP</SelectItem>
+                       </SelectContent>
                     </Select>
-                  </label>
+                  </div>
+
+                  {formData.contractType === 'amendment' && (
+                    <div className="space-y-2 md:col-span-2">
+                      <label htmlFor="amendmentNumber" className="text-sm font-medium">Amendment Number *</label>
+                      <Input id="amendmentNumber" placeholder="e.g., 01, 02" value={formData.amendmentNumber} onChange={e => setFormData({...formData, amendmentNumber: e.target.value})} required />
+                      <p className="text-xs text-gray-500">Enter the amendment number for this contract modification.</p>
+                    </div>
+                  )}
+
+                  <div className="space-y-2 md:col-span-2">
+                    <label htmlFor="description" className="text-sm font-medium">Description / Scope Summary *</label>
+                    <Textarea id="description" placeholder="Briefly describe the contract's purpose and scope." value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} required />
+                  </div>
+
+                 <div className="space-y-2">
+                   <label htmlFor="department" className="text-sm font-medium">Department *</label>
+                   <Input id="department" placeholder="e.g., Marketing, IT" value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})} required />
+                 </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="contractAdmin" className="text-sm font-medium">Contract Admin/Primary Contact *</label>
+                    <Input id="contractAdmin" placeholder="Name of the responsible person" value={formData.contractAdmin} onChange={e => setFormData({...formData, contractAdmin: e.target.value})} required />
+                  </div>
+               </div>
+             </Card>
+
+             <Card className="p-6 bg-white shadow-sm">
+                <h2 className="text-xl font-semibold mb-6 border-b pb-2 flex items-center"><DollarSign className="h-5 w-5 mr-2 text-primary"/> Financials & Dates</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <label htmlFor="nte" className="text-sm font-medium">Not-to-Exceed (NTE) Amount *</label>
+                    <Input id="nte" type="number" placeholder="e.g., 5000" value={formData.nte} onChange={e => setFormData({...formData, nte: e.target.value})} required />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="startDate" className="text-sm font-medium">Start Date *</label>
+                    <Input id="startDate" type="date" value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} required />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="endDate" className="text-sm font-medium">End Date *</label>
+                    <Input id="endDate" type="date" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} required />
+                  </div>
+                   <div className="space-y-2 md:col-span-3">
+                     <label htmlFor="accountingCodes" className="text-sm font-medium">Accounting Codes (Optional)</label>
+                     <Input id="accountingCodes" placeholder="e.g., Project Code, Cost Center" value={formData.accountingCodes} onChange={e => setFormData({...formData, accountingCodes: e.target.value})} />
+                   </div>
+                </div>
+              </Card>
+
+             <Card className="p-6 bg-white shadow-sm">
+                <h2 className="text-xl font-semibold mb-6 border-b pb-2 flex items-center"><Building className="h-5 w-5 mr-2 text-primary"/> Vendor Details</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <div className="space-y-2">
+                     <label htmlFor="vendorName" className="text-sm font-medium">Vendor Name *</label>
+                     <Input id="vendorName" placeholder="Vendor/Contractor Company Name" value={formData.vendorName} onChange={e => setFormData({...formData, vendorName: e.target.value})} required />
+                   </div>
+                  <div className="space-y-2">
+                    <label htmlFor="vendorEmail" className="text-sm font-medium">Vendor Email *</label>
+                    <Input id="vendorEmail" type="email" placeholder="vendor@example.com" value={formData.vendorEmail} onChange={e => setFormData({...formData, vendorEmail: e.target.value})} required />
+                  </div>
+                   <div className="space-y-2">
+                     <label htmlFor="vendorPhone" className="text-sm font-medium">Vendor Phone (Optional)</label>
+                     <Input id="vendorPhone" placeholder="(555) 123-4567" value={formData.vendorPhone} onChange={e => setFormData({...formData, vendorPhone: e.target.value})} />
+                   </div>
+                   <div className="space-y-2 md:col-span-2">
+                     <label htmlFor="vendorAddress" className="text-sm font-medium">Vendor Address (Optional)</label>
+                     <Textarea id="vendorAddress" placeholder="123 Vendor St, City, State, Zip" value={formData.vendorAddress} onChange={e => setFormData({...formData, vendorAddress: e.target.value})} />
+                   </div>
+                </div>
+              </Card>
+
+              <Card className="p-6 bg-white shadow-sm">
+                <h2 className="text-xl font-semibold mb-6 border-b pb-2 flex items-center"><User className="h-5 w-5 mr-2 text-primary"/> Signatory Details</h2>
+                 <p className="text-sm text-gray-600 mb-4">Provide the contact information for the person authorized to sign on behalf of the vendor/contractor.</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <div className="space-y-2">
+                     <label htmlFor="signatoryName" className="text-sm font-medium">Signatory Full Name *</label>
+                     <Input id="signatoryName" placeholder="Jane Doe" value={formData.signatoryName} onChange={e => setFormData({...formData, signatoryName: e.target.value})} required />
+                   </div>
+                  <div className="space-y-2">
+                    <label htmlFor="signatoryEmail" className="text-sm font-medium">Signatory Email *</label>
+                    <Input id="signatoryEmail" type="email" placeholder="signer@example.com" value={formData.signatoryEmail} onChange={e => setFormData({...formData, signatoryEmail: e.target.value})} required />
+                  </div>
+                 </div>
+              </Card>
+
+             <Card className="p-6 bg-white shadow-sm">
+                <h2 className="text-xl font-semibold mb-6 border-b pb-2 flex items-center"><Briefcase className="h-5 w-5 mr-2 text-primary"/> Statement of Work (SOW) / Attachments</h2>
+                <p className="text-sm text-gray-600 mb-4">Attach the SOW or any other relevant supporting documents. You can download a template below.</p>
+                <div className="flex gap-4 mb-4">
+                   <Button type="button" variant="outline" onClick={downloadTemplate}>
+                     <Download className="h-4 w-4 mr-2"/> Download SOW Template
+                   </Button>
+                   <div className="relative">
+                    <Input 
+                       type="file" 
+                       multiple 
+                       onChange={handleFileChange} 
+                       id="sowFiles" 
+                       className="hidden"
+                     />
+                     <Button type="button" asChild>
+                        <label htmlFor="sowFiles" className="cursor-pointer">
+                           <Upload className="h-4 w-4 mr-2"/> Upload Files
+                        </label>
+                     </Button>
+                   </div>
                 </div>
 
-                {formData.contractType === "amendment" && (
-                  <label className="block">
-                    <span className="text-gray-700">Contract/PO Number to Amend</span>
-                    <Input
-                      type="text"
-                      value={formData.amendmentNumber}
-                      onChange={(e) => setFormData({ ...formData, amendmentNumber: e.target.value })}
-                      className="mt-1 block w-full"
-                      placeholder="Enter original contract or PO number"
-                    />
-                  </label>
+                {formData.sowFiles.length > 0 && (
+                   <div className="space-y-2 border-t pt-4">
+                     <h3 className="text-sm font-medium">Selected Files:</h3>
+                     <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+                       {formData.sowFiles.map((file, index) => (
+                         <li key={index} className="flex justify-between items-center">
+                           <span>{file.name}</span>
+                           <Button type="button" variant="ghost" size="sm" onClick={() => removeFile(index)} className="text-red-500 hover:text-red-700">
+                             <X className="h-4 w-4"/>
+                           </Button>
+                         </li>
+                       ))}
+                     </ul>
+                   </div>
                 )}
+              </Card>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <label className="block">
-                    <span className="text-gray-700 flex items-center gap-2">
-                      <Briefcase className="h-4 w-4" />
-                      Requesting Department
-                    </span>
-                    <Input
-                      type="text"
-                      required
-                      value={formData.department}
-                      onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                      className="mt-1 block w-full"
-                      placeholder="Enter department name"
-                    />
-                  </label>
-
-                  <label className="block">
-                    <span className="text-gray-700 flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      Contract Administrator
-                    </span>
-                    <Input
-                      type="text"
-                      required
-                      value={formData.contractAdmin}
-                      onChange={(e) => setFormData({ ...formData, contractAdmin: e.target.value })}
-                      className="mt-1 block w-full"
-                      placeholder="Enter administrator name"
-                    />
-                  </label>
-                </div>
-
-                <label className="block">
-                  <span className="text-gray-700">Description</span>
-                  <Textarea
-                    required
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="mt-1 block w-full"
-                    placeholder="Describe the purpose and details of the contract"
-                    rows={4}
-                  />
-                </label>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <label className="block">
-                    <span className="text-gray-700 flex items-center gap-2">
-                      <DollarSign className="h-4 w-4" />
-                      NTE Amount
-                    </span>
-                    <Input
-                      type="number"
-                      required
-                      value={formData.nte}
-                      onChange={(e) => setFormData({ ...formData, nte: e.target.value })}
-                      className="mt-1 block w-full"
-                      placeholder="0.00"
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="text-gray-700 flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      Start Date
-                    </span>
-                    <Input
-                      type="date"
-                      required
-                      value={formData.startDate}
-                      onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                      className="mt-1 block w-full"
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="text-gray-700 flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      End Date
-                    </span>
-                    <Input
-                      type="date"
-                      required
-                      value={formData.endDate}
-                      onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                      className="mt-1 block w-full"
-                    />
-                  </label>
-                </div>
-
-                <label className="block">
-                  <span className="text-gray-700">Accounting Codes</span>
-                  <Input
-                    type="text"
-                    required
-                    value={formData.accountingCodes}
-                    onChange={(e) => setFormData({ ...formData, accountingCodes: e.target.value })}
-                    className="mt-1 block w-full"
-                    placeholder="Enter accounting codes"
-                  />
-                </label>
-
-                <div className="bg-emerald-50 p-4 rounded-lg space-y-4">
-                  <div className="flex items-center gap-2 text-emerald-700">
-                    <Building className="h-5 w-5" />
-                    <h3 className="font-medium">Vendor Information</h3>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <label className="block">
-                      <span className="text-gray-700">Vendor Name</span>
-                      <Input
-                        type="text"
-                        required
-                        value={formData.vendorName}
-                        onChange={(e) => setFormData({ ...formData, vendorName: e.target.value })}
-                        className="mt-1 block w-full"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="text-gray-700">Vendor Email</span>
-                      <Input
-                        type="email"
-                        required
-                        value={formData.vendorEmail}
-                        onChange={(e) => setFormData({ ...formData, vendorEmail: e.target.value })}
-                        className="mt-1 block w-full"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="text-gray-700">Vendor Phone</span>
-                      <Input
-                        type="tel"
-                        value={formData.vendorPhone}
-                        onChange={(e) => setFormData({ ...formData, vendorPhone: e.target.value })}
-                        className="mt-1 block w-full"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="text-gray-700">Vendor Address</span>
-                      <Input
-                        type="text"
-                        required
-                        value={formData.vendorAddress}
-                        onChange={(e) => setFormData({ ...formData, vendorAddress: e.target.value })}
-                        className="mt-1 block w-full"
-                      />
-                    </label>
-                  </div>
-                </div>
-
-                <div className="bg-orange-50 p-4 rounded-lg space-y-4">
-                  <div className="flex items-center gap-2 text-orange-700">
-                    <User className="h-5 w-5" />
-                    <h3 className="font-medium">Authorized Signatory</h3>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <label className="block">
-                      <span className="text-gray-700">Signatory Name</span>
-                      <Input
-                        type="text"
-                        required
-                        value={formData.signatoryName}
-                        onChange={(e) => setFormData({ ...formData, signatoryName: e.target.value })}
-                        className="mt-1 block w-full"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="text-gray-700">Signatory Email</span>
-                      <Input
-                        type="email"
-                        required
-                        value={formData.signatoryEmail}
-                        onChange={(e) => setFormData({ ...formData, signatoryEmail: e.target.value })}
-                        className="mt-1 block w-full"
-                      />
-                    </label>
-                  </div>
-                </div>
-
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
-                  <div className="text-center space-y-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={downloadTemplate}
-                      className="mb-4"
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Download SOW Template
-                    </Button>
-
-                    <label className="block cursor-pointer">
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept=".pdf,.doc,.docx,.txt"
-                        onChange={handleFileChange}
-                        multiple
-                      />
-                      <div className="space-y-2">
-                        <Upload className="h-8 w-8 mx-auto text-gray-400" />
-                        <div className="text-sm text-gray-600">
-                          <span className="text-emerald-600 font-medium">Click to upload</span> or drag
-                          and drop
-                          <br />
-                          SOW documents (PDF, DOC, DOCX, TXT)
-                        </div>
-                      </div>
-                    </label>
-
-                    {formData.sowFiles.length > 0 && (
-                      <div className="mt-4 space-y-2">
-                        <p className="text-sm font-medium text-gray-700">Uploaded files:</p>
-                        <div className="max-h-40 overflow-y-auto">
-                          {formData.sowFiles.map((file, index) => (
-                            <div
-                              key={`${file.name}-${index}`}
-                              className="flex items-center justify-between bg-gray-50 p-2 rounded-md text-sm"
-                            >
-                              <span className="text-emerald-600 truncate flex-1">{file.name}</span>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeFile(index)}
-                                className="ml-2 text-gray-500 hover:text-red-500"
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-4">
-                <Button
-                  type="submit"
-                  size="lg"
-                  className="hover-effect bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700"
-                >
-                  <Send className="w-4 h-4 mr-2" />
-                  Submit Request
-                </Button>
-              </div>
-            </form>
-          </Card>
+             <div className="flex justify-end">
+               <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700" disabled={isSubmitting}>
+                 {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+                  {isSubmitting ? "Submitting..." : "Submit Request"}
+               </Button>
+             </div>
+          </form>
         </div>
       </div>
     </>

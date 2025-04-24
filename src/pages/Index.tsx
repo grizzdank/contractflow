@@ -34,7 +34,7 @@ const Index = () => {
                 gradientClass="from-emerald-500 to-green-500"
               />
             </Link>
-            <Link to="/request">
+            <Link to="/contracts/request">
               <QuickActionCard
                 icon={<GanttChartSquare className="h-6 w-6" />}
                 title="Request Contract"

@@ -1,6 +1,5 @@
-import { useState, useEffect, useContext } from "react";
-import { Link } from "react-router-dom";
-import { Card } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -10,13 +9,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FileText, Search, Filter, CheckCircle, Clock, Edit, Users, User } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+  getPaginationRowModel,
+  getSortedRowModel,
+  SortingState,
+} from "@tanstack/react-table";
+import { ArrowUpDown, FileText, Search, Filter, CheckCircle, Clock, Edit, Users, Loader2 } from "lucide-react";
 import Navigation from "@/components/Navigation";
 import { Contract } from "@/domain/types/Contract";
 import { toast } from "@/components/ui/use-toast";
 import { createAuthenticatedSupabaseClient } from "@/lib/supabase/client";
-import { useAuth } from "@/lib/hooks/useAuth";
-import { ClerkAuthContext } from "@/contexts/ClerkAuthContext";
+import { useClerkAuth } from "@/contexts/ClerkAuthContext";
+import { Badge } from "@/components/ui/badge";
 
 type ContractStatus = Contract['status'];
 type ContractType = 'grant' | 'services' | 'goods' | 'sponsorship' | 'amendment' | 'vendor_agreement' | 'interagency_agreement' | 'mou' | 'sole_source' | 'rfp';
@@ -111,97 +127,7 @@ const mapDbToContract = (data: any): Contract => {
   };
 };
 
-const Contracts = () => {
-  const [filters, setFilters] = useState({
-    search: "",
-    status: "all",
-    type: "all",
-    department: "all",
-  });
-  const [contracts, setContracts] = useState<Contract[]>([]);
-  const [availableDepartments, setAvailableDepartments] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isCreatingContract, setIsCreatingContract] = useState(false);
-  
-  const { getToken } = useAuth();
-  const authContext = useContext(ClerkAuthContext);
-  const organizationId = authContext?.authState.user?.organizationId;
-
-  const loadContracts = async () => {
-    console.log('[Contracts] loadContracts called');
-    if (!getToken) {
-      console.error('[Contracts] getToken function not available from useAuth');
-      setError('Authentication not ready.');
-      setIsLoading(false);
-      return;
-    }
-
-    if (!organizationId) {
-      console.warn('[Contracts] Organization ID not available yet. Cannot fetch contracts.');
-      setContracts([]); 
-      setIsLoading(false); 
-      setError('Organization details not loaded yet.');
-      return; 
-    }
-    console.log(`[Contracts] Fetching contracts for Org ID: ${organizationId}`);
-
-    setIsLoading(true);
-    setError(null);
-    try {
-      const authenticatedSupabase = await createAuthenticatedSupabaseClient(getToken);
-      console.log('[Contracts] Authenticated Supabase client created for fetch.');
-
-      const { data, error: fetchError } = await authenticatedSupabase
-        .from('contracts')
-        .select('*')
-        .eq('organization_id', organizationId);
-
-      console.log('[Contracts] Fetch response:', { data, fetchError });
-
-      if (fetchError) {
-        console.error('[Contracts] Error fetching contracts:', fetchError);
-        throw fetchError;
-      }
-      
-      const mappedContracts = (data || []).map(mapDbToContract);
-      setContracts(mappedContracts);
-      console.log('[Contracts] Mapped contracts set:', mappedContracts);
-      
-      const uniqueDepts = Array.from(
-        new Set(
-          mappedContracts
-            .map(c => c.department)
-            .filter((dept): dept is string => typeof dept === 'string' && dept.trim() !== '')
-        )
-      ).sort();
-      setAvailableDepartments(uniqueDepts);
-      console.log('[Contracts] Available departments set:', uniqueDepts);
-      
-    } catch (err: any) {
-      console.error('[Contracts] Error in loadContracts process:', err);
-      setError(`Failed to load contracts: ${err.message || 'Unknown error'}`);
-      toast({
-        title: "Error Loading Contracts",
-        description: err.message || 'An unexpected error occurred.',
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-      console.log('[Contracts] loadContracts finished');
-    }
-  };
-
-  useEffect(() => {
-    console.log('[Contracts] useEffect running');
-    loadContracts();
-  }, [getToken, organizationId]);
-
-  const createTestContract = async () => {
-    alert('createTestContract needs refactoring to use authenticated client and organization ID.');
-  };
-
-  const getStatusIcon = (status: Contract['status']) => {
+const getStatusIcon = (status: Contract['status']) => {
     switch (status) {
       case 'ExecutedActive':
         return <CheckCircle className="h-4 w-4 text-green-500" />;
@@ -218,269 +144,437 @@ const Contracts = () => {
       default:
         return null;
     }
-  };
+};
 
-  const getStatusColor = (status: Contract['status']) => {
-    switch (status) {
-      case 'ExecutedActive':
-        return 'bg-green-100 text-green-800';
-      case 'ExecutedExpired':
-        return 'bg-gray-100 text-gray-800';
-      case 'Draft':
-        return 'bg-blue-100 text-blue-800';
-      case 'Review':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'InSignature':
-        return 'bg-purple-100 text-purple-800';
-      case 'Requested':
-        return 'bg-blue-100 text-blue-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+const getStatusVariant = (status: Contract['status']): "default" | "secondary" | "destructive" | "outline" => {
+  switch (status) {
+    case 'ExecutedActive': return 'default';
+    case 'ExecutedExpired': return 'secondary';
+    case 'Draft': return 'outline';
+    case 'Review': return 'outline';
+    case 'InSignature': return 'outline';
+    case 'Requested': return 'outline';
+    default: return 'secondary';
+  }
+};
+
+export const columns: ColumnDef<Contract>[] = [
+  {
+    accessorKey: "contractNumber",
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Contract #
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => (
+      <Link to={`/contracts/${row.original.contractNumber}`} className="hover:underline text-blue-600">
+        {row.getValue("contractNumber") || "Pending"}
+      </Link>
+    ),
+  },
+  {
+    accessorKey: "title",
+    header: "Title",
+    cell: ({ row }) => <div className="truncate max-w-xs" title={row.getValue("title")}>{row.getValue("title")}</div>,
+  },
+  {
+    accessorKey: "vendor",
+    header: "Vendor",
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ row }) => {
+      const status = row.getValue("status") as ContractStatus;
+      return (
+        <Badge variant={getStatusVariant(status)} className="flex items-center gap-1 w-fit">
+          {getStatusIcon(status)}
+          {status}
+        </Badge>
+      );
+    },
+  },
+   {
+    accessorKey: "department",
+    header: "Department",
+  },
+  {
+    accessorKey: "endDate",
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        End Date
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => {
+      const date = row.getValue("endDate") as string;
+      return date ? new Date(date).toLocaleDateString() : "N/A";
+    },
+  },
+  {
+    accessorKey: "amount",
+    header: () => <div className="text-right">Amount</div>,
+    cell: ({ row }) => {
+      const amount = parseFloat(row.getValue("amount"));
+      const formatted = new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+      }).format(amount);
+      return <div className="text-right font-medium">{formatted}</div>;
+    },
+  },
+];
+
+const Contracts = () => {
+  const [filters, setFilters] = useState({
+    search: "",
+    status: "all",
+    type: "all",
+    department: "all",
+  });
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [availableDepartments, setAvailableDepartments] = useState<string[]>([]);
+  const [isLoadingContracts, setIsLoadingContracts] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const navigate = useNavigate();
+
+  const { user, isLoading: isAuthLoading, getToken, error: authError } = useClerkAuth();
+  const organizationId = user?.organizationId;
+
+  const loadContracts = async () => {
+    console.log('[Contracts] loadContracts called');
+    
+    if (isAuthLoading) {
+      console.log('[Contracts] Auth context still loading. Aborting contract fetch.');
+      setIsLoadingContracts(false);
+      return;
+    }
+    
+    if (!getToken) {
+      console.error('[Contracts] getToken function not available from auth context.');
+      setError('Authentication provider not ready.');
+      setIsLoadingContracts(false);
+      return;
+    }
+    
+    if (!organizationId) {
+      console.warn('[Contracts] Organization ID not available in auth context. Cannot fetch contracts.');
+      setContracts([]);
+      setIsLoadingContracts(false);
+      if (!isAuthLoading) {
+        setError('Your user profile is missing organization details. Please contact support.');
+      } else {
+         setError('Organization details not loaded yet.');
+      }
+      return;
+    }
+    
+    console.log(`[Contracts] Fetching contracts for Org ID: ${organizationId}`);
+
+    setIsLoadingContracts(true);
+    setError(null);
+    try {
+      const authenticatedSupabase = await createAuthenticatedSupabaseClient(getToken);
+      console.log('[Contracts] Authenticated Supabase client created for fetch.');
+
+      const { data, error: fetchError } = await authenticatedSupabase
+        .from('contracts')
+        .select('*')
+        .eq('organization_id', organizationId);
+
+      console.log('[Contracts] Fetch response:', { data, fetchError });
+
+      if (fetchError) {
+        console.error('[Contracts] Error fetching contracts:', fetchError);
+        throw fetchError;
+      }
+
+      const mappedContracts = (data || []).map(mapDbToContract);
+      setContracts(mappedContracts);
+      console.log('[Contracts] Mapped contracts set:', mappedContracts);
+
+      const uniqueDepts = Array.from(
+        new Set(
+          mappedContracts
+            .map(c => c.department)
+            .filter((dept): dept is string => typeof dept === 'string' && dept.trim() !== '')
+        )
+      ).sort();
+      setAvailableDepartments(uniqueDepts);
+      console.log('[Contracts] Available departments set:', uniqueDepts);
+
+    } catch (err: any) {
+      console.error('[Contracts] Error in loadContracts process:', err);
+      const errorMessage = err.message || 'Unknown error';
+      setError(`Failed to load contracts: ${errorMessage}`);
+      toast({
+        title: "Error Loading Contracts",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingContracts(false);
+      console.log('[Contracts] loadContracts finished');
     }
   };
 
-  console.log("[Contracts] Current Filters State:", filters);
-  console.log("[Contracts] First Raw Contract Data (if any):", contracts.length > 0 ? contracts[0] : 'N/A');
+  useEffect(() => {
+    console.log('[Contracts] useEffect running, checking conditions...');
+    if (!isAuthLoading && getToken && organizationId) {
+      loadContracts();
+    } else if (!isAuthLoading && getToken && !organizationId) {
+        console.warn('[Contracts] useEffect: Auth loaded but Org ID missing.');
+    }
+  }, [isAuthLoading, getToken, organizationId]);
 
   const filteredContracts = contracts.filter((contract) => {
-    const searchLower = filters.search.toLowerCase();
+     const searchLower = filters.search.toLowerCase();
     const deptFilterLower = filters.department.toLowerCase();
 
     const titleMatch = contract.title?.toLowerCase().includes(searchLower);
     const vendorMatch = contract.vendor?.toLowerCase().includes(searchLower);
+    const descriptionMatch = contract.description?.toLowerCase().includes(searchLower);
     const numberMatch = contract.contractNumber?.toLowerCase().includes(searchLower);
-    
+
+    const searchMatch = titleMatch || vendorMatch || descriptionMatch || numberMatch;
+
     const statusMatch = filters.status === "all" || contract.status === filters.status;
     const typeMatch = filters.type === "all" || contract.type === filters.type;
-    const departmentMatch = filters.department === "all" || contract.department === filters.department;
+    const departmentMatch =
+      filters.department === "all" ||
+      contract.department?.toLowerCase() === deptFilterLower;
 
-    return (
-      (filters.search === "" || titleMatch || vendorMatch || numberMatch) &&
-      statusMatch &&
-      typeMatch &&
-      departmentMatch
-    );
+    return searchMatch && statusMatch && typeMatch && departmentMatch;
   });
 
-  console.log("[Contracts] Filtered Contracts Count:", filteredContracts.length);
+  const table = useReactTable({
+    data: filteredContracts,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    onSortingChange: setSorting,
+    state: {
+      sorting,
+    },
+  });
+
+  if (isAuthLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="ml-2">Loading user authentication...</p>
+      </div>
+    );
+  }
+
+  if (authError) {
+     return (
+       <div className="flex h-screen items-center justify-center text-red-600">
+         <p>Error loading authentication: {authError.message}</p>
+       </div>
+     );
+   }
+
+  if (!organizationId && !isAuthLoading) {
+      return (
+          <div className="flex h-screen items-center justify-center text-red-600">
+            <p>{error || 'Your user profile is missing organization details. Cannot load contracts.'}</p>
+          </div>
+      );
+  }
 
   return (
-    <>
+    <div className="flex h-screen bg-gray-100">
       <Navigation />
-      <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-orange-50 pt-16">
-        <div className="max-w-7xl mx-auto space-y-8 fade-in p-6">
-          <header className="text-center space-y-4">
-            <div className="inline-block px-4 py-1 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-full text-sm font-medium">
-              Contract Tracker
-            </div>
-            <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-emerald-700 to-orange-600 bg-clip-text text-transparent">
-              Active Contracts
-            </h1>
-            <p className="text-gray-600 max-w-2xl mx-auto">
-              Monitor and manage your ongoing contracts in one place.
-            </p>
-            <div className="mt-4 flex justify-center gap-4">
-              <Button 
-                onClick={createTestContract} 
-                disabled={isCreatingContract}
-                className="bg-emerald-600 hover:bg-emerald-700"
-              >
-                {isCreatingContract ? "Creating..." : "Create Test Contract"}
-              </Button>
-              <Link to="/request">
-                <Button 
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  Request New Contract
-                </Button>
-              </Link>
-            </div>
-          </header>
-
-          <Card className="p-6">
-            <div className="space-y-4">
-              {error && (
-                <div className="bg-red-50 text-red-600 p-4 rounded-md">
-                  {error}
-                </div>
-              )}
-
-              {isLoading ? (
-                <div className="text-center py-8 text-gray-500">
-                  Loading contracts...
-                </div>
-              ) : (
-                <>
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
-                      <Input
-                        placeholder="Search contracts..."
-                        value={filters.search}
-                        onChange={(e) =>
-                          setFilters({ ...filters, search: e.target.value })
-                        }
-                        className="pl-10"
-                      />
-                    </div>
-                    <div className="flex gap-4 flex-wrap sm:flex-nowrap">
-                      <Select
-                        value={filters.status}
-                        onValueChange={(value) =>
-                          setFilters({ ...filters, status: value })
-                        }
-                      >
-                        <SelectTrigger className="w-[140px]">
-                          <SelectValue placeholder="Status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Status</SelectItem>
-                          <SelectItem value="Requested">Requested</SelectItem>
-                          <SelectItem value="Draft">Draft</SelectItem>
-                          <SelectItem value="Review">Review</SelectItem>
-                          <SelectItem value="InSignature">In Signature</SelectItem>
-                          <SelectItem value="ExecutedActive">Active</SelectItem>
-                          <SelectItem value="ExecutedExpired">Expired</SelectItem>
-                        </SelectContent>
-                      </Select>
-
-                      <Select
-                        value={filters.type}
-                        onValueChange={(value) =>
-                          setFilters({ ...filters, type: value })
-                        }
-                      >
-                        <SelectTrigger className="w-[140px]">
-                          <SelectValue placeholder="Type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Types</SelectItem>
-                          <SelectItem value="grant">Grant</SelectItem>
-                          <SelectItem value="services">Services</SelectItem>
-                          <SelectItem value="goods">Goods</SelectItem>
-                          <SelectItem value="sponsorship">Sponsorship</SelectItem>
-                          <SelectItem value="amendment">Amendment</SelectItem>
-                          <SelectItem value="vendor_agreement">Vendor Agreement</SelectItem>
-                          <SelectItem value="interagency_agreement">InterAgency Agreement</SelectItem>
-                          <SelectItem value="mou">MOU</SelectItem>
-                          <SelectItem value="sole_source">Sole/Single Source</SelectItem>
-                          <SelectItem value="rfp">RFP</SelectItem>
-                        </SelectContent>
-                      </Select>
-
-                      <Select
-                        value={filters.department}
-                        onValueChange={(value) =>
-                          setFilters({ ...filters, department: value })
-                        }
-                      >
-                        <SelectTrigger className="w-[160px]">
-                          <SelectValue placeholder="Department" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Departments</SelectItem>
-                          {availableDepartments.map((dept) => (
-                            <SelectItem key={dept} value={dept}>
-                              {dept}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left py-3 px-4 font-medium text-gray-600">Contract Number</th>
-                          <th className="text-left py-3 px-4 font-medium text-gray-600">Contract</th>
-                          <th className="text-left py-3 px-4 font-medium text-gray-600">Vendor</th>
-                          <th className="text-left py-3 px-4 font-medium text-gray-600">Amount</th>
-                          <th className="text-left py-3 px-4 font-medium text-gray-600">Start Date</th>
-                          <th className="text-left py-3 px-4 font-medium text-gray-600">End Date</th>
-                          <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
-                          <th className="text-left py-3 px-4 font-medium text-gray-600">Type</th>
-                          <th className="text-left py-3 px-4 font-medium text-gray-600">Department</th>
-                          <th className="text-left py-3 px-4 font-medium text-gray-600">Created By</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredContracts.map((contract) => (
-                          <tr
-                            key={contract.id}
-                            className="border-b hover:bg-gray-50/50 transition-colors"
-                          >
-                            <td className="py-3 px-4">
-                              <Link 
-                                to={`/contracts/${contract.contractNumber}`}
-                                className="font-mono font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
-                              >
-                                {contract.contractNumber}
-                              </Link>
-                            </td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-2">
-                                <FileText className="h-4 w-4 text-gray-500" />
-                                <span className="font-medium text-gray-900">
-                                  {contract.title}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4 text-gray-600">
-                              {contract.vendor}
-                            </td>
-                            <td className="py-3 px-4 text-gray-600">
-                              ${contract.amount.toLocaleString()}
-                            </td>
-                            <td className="py-3 px-4 text-gray-600">
-                              {new Date(contract.startDate).toLocaleDateString()}
-                            </td>
-                            <td className="py-3 px-4 text-gray-600">
-                              {new Date(contract.endDate).toLocaleDateString()}
-                            </td>
-                            <td className="py-3 px-4">
-                              <span
-                                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium capitalize
-                                  ${getStatusColor(contract.status)}`}
-                              >
-                                {getStatusIcon(contract.status)}
-                                {contract.status === 'InSignature' ? 'In Signature' : contract.status}
-                              </span>
-                            </td>
-                            <td className="py-3 px-4 text-gray-600 capitalize">
-                              {contract.type.replace(/_/g, " ")}
-                            </td>
-                            <td className="py-3 px-4 text-gray-600">
-                              {contract.department}
-                            </td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-2">
-                                <User className="h-4 w-4 text-gray-400" />
-                                <div>
-                                  <p className="text-sm text-gray-500">{contract.creatorEmail}</p>
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                        {filteredContracts.length === 0 && (
-                          <tr>
-                            <td colSpan={10} className="text-center py-8 text-gray-500">
-                              No contracts found matching your filters.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </>
-              )}
-            </div>
-          </Card>
+      <main className="flex-1 p-6 overflow-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-semibold text-gray-800">Contracts</h1>
+          <Link to="/contracts/request">
+            <Button>Request New Contract</Button>
+          </Link>
         </div>
-      </div>
-    </>
+
+        <div className="p-4 mb-6 bg-white shadow-sm rounded-lg border border-gray-200">
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+            <div className="flex flex-col space-y-1.5">
+              <label htmlFor="search" className="text-sm font-medium text-gray-700">Search</label>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                <Input
+                  id="search"
+                  type="text"
+                  placeholder="Search by title, vendor..."
+                  value={filters.search}
+                  onChange={(e) =>
+                    setFilters({ ...filters, search: e.target.value })
+                  }
+                  className="pl-8"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col space-y-1.5">
+              <label htmlFor="status-filter" className="text-sm font-medium text-gray-700">Status</label>
+              <Select
+                value={filters.status}
+                onValueChange={(value) =>
+                  setFilters({ ...filters, status: value })
+                }
+              >
+                <SelectTrigger id="status-filter">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="Requested">Requested</SelectItem>
+                  <SelectItem value="Draft">Draft</SelectItem>
+                  <SelectItem value="Review">Review</SelectItem>
+                  <SelectItem value="InSignature">In Signature</SelectItem>
+                  <SelectItem value="ExecutedActive">Executed (Active)</SelectItem>
+                  <SelectItem value="ExecutedExpired">Executed (Expired)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col space-y-1.5">
+              <label htmlFor="type-filter" className="text-sm font-medium text-gray-700">Type</label>
+              <Select
+                value={filters.type}
+                onValueChange={(value) => setFilters({ ...filters, type: value })}
+              >
+                <SelectTrigger id="type-filter">
+                  <SelectValue placeholder="Filter by type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="grant">Grant</SelectItem>
+                  <SelectItem value="services">Services (PSA)</SelectItem>
+                  <SelectItem value="goods">Goods (PSA)</SelectItem>
+                  <SelectItem value="sponsorship">Sponsorship</SelectItem>
+                  <SelectItem value="amendment">Amendment</SelectItem>
+                  <SelectItem value="vendor_agreement">Vendor Agreement</SelectItem>
+                  <SelectItem value="interagency_agreement">Interagency Agreement</SelectItem>
+                  <SelectItem value="mou">MOU</SelectItem>
+                  <SelectItem value="sole_source">Sole Source</SelectItem>
+                  <SelectItem value="rfp">RFP</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col space-y-1.5">
+               <label htmlFor="dept-filter" className="text-sm font-medium text-gray-700">Department</label>
+               <Select
+                 value={filters.department}
+                 onValueChange={(value) =>
+                   setFilters({ ...filters, department: value })
+                 }
+                 disabled={availableDepartments.length === 0}
+               >
+                 <SelectTrigger id="dept-filter">
+                   <SelectValue placeholder="Filter by department" />
+                 </SelectTrigger>
+                 <SelectContent>
+                   <SelectItem value="all">All Departments</SelectItem>
+                   {availableDepartments.map((dept) => (
+                     <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                   ))}
+                 </SelectContent>
+               </Select>
+             </div>
+
+          </div>
+        </div>
+
+        {isLoadingContracts ? (
+          <div className="flex items-center justify-center mt-10">
+             <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <p className="ml-2">Loading contracts...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center text-red-600 mt-10">{error}</div>
+        ) : (
+          <div className="rounded-md border bg-white shadow-sm">
+             <Table>
+              <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => {
+                      return (
+                        <TableHead key={header.id}>
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                                header.column.columnDef.header,
+                                header.getContext()
+                              )}
+                        </TableHead>
+                      );
+                    })}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {table.getRowModel().rows?.length ? (
+                  table.getRowModel().rows.map((row) => (
+                    <TableRow
+                      key={row.id}
+                      data-state={row.getIsSelected() && "selected"}
+                      onClick={() => navigate(`/contracts/${row.original.contractNumber}`)}
+                      className="cursor-pointer hover:bg-gray-50"
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={columns.length}
+                      className="h-24 text-center"
+                    >
+                      No results.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+             <div className="flex items-center justify-end space-x-2 py-4 px-4">
+               <Button
+                 variant="outline"
+                 size="sm"
+                 onClick={() => table.previousPage()}
+                 disabled={!table.getCanPreviousPage()}
+               >
+                 Previous
+               </Button>
+               <Button
+                 variant="outline"
+                 size="sm"
+                 onClick={() => table.nextPage()}
+                 disabled={!table.getCanNextPage()}
+               >
+                 Next
+               </Button>
+             </div>
+          </div>
+        )}
+      </main>
+    </div>
   );
 };
 

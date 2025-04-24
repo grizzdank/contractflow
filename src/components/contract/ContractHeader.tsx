@@ -1,24 +1,20 @@
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CheckCircle, Edit } from "lucide-react";
+import { Contract } from "@/domain/types/Contract";
 
 interface ContractHeaderProps {
-  title: string;
+  contract: Contract;
   isEditing: boolean;
-  canEdit: boolean;
-  onEditClick: () => void;
-  onSaveClick: () => void;
-  onTitleChange: (newTitle: string) => void;
+  onEditToggle: () => void;
+  onSave: () => void;
 }
 
 export function ContractHeader({
-  title,
+  contract,
   isEditing,
-  canEdit,
-  onEditClick,
-  onSaveClick,
-  onTitleChange,
+  onEditToggle,
+  onSave,
 }: ContractHeaderProps) {
   return (
     <header className="text-center space-y-4">
@@ -26,33 +22,25 @@ export function ContractHeader({
         Contract Details
       </div>
       <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-emerald-700 to-orange-600 bg-clip-text text-transparent">
-        {isEditing ? (
-          <Input 
-            value={title}
-            onChange={(e) => onTitleChange(e.target.value)}
-            className="text-center text-4xl font-bold"
-          />
-        ) : title}
+        {contract.title}
       </h1>
-      {canEdit && (
-        <Button
-          onClick={() => isEditing ? onSaveClick() : onEditClick()}
-          variant="outline"
-          className="mt-4"
-        >
-          {isEditing ? (
-            <>
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Save Changes
-            </>
-          ) : (
-            <>
-              <Edit className="h-4 w-4 mr-2" />
-              Edit Contract Details
-            </>
-          )}
-        </Button>
-      )}
+      <Button
+        onClick={() => isEditing ? onSave() : onEditToggle()}
+        variant="outline"
+        className="mt-4"
+      >
+        {isEditing ? (
+          <>
+            <CheckCircle className="h-4 w-4 mr-2" />
+            Save Changes
+          </>
+        ) : (
+          <>
+            <Edit className="h-4 w-4 mr-2" />
+            Edit Contract Details
+          </>
+        )}
+      </Button>
     </header>
   );
 }

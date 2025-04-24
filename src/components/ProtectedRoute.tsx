@@ -15,8 +15,15 @@ interface ProtectedRouteProps {
  * @param allowedRoles - Optional array of roles that are allowed to access the route
  */
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-  const { user, session, isLoading } = useAuth();
+  const auth = useAuth();
   const location = useLocation();
+
+  if (!auth) {
+    console.log(`[ProtectedRoute] Path: ${location.pathname} - Auth context not available yet.`);
+    return <div>Authenticating... Please wait.</div>;
+  }
+
+  const { user, session, isLoading } = auth;
 
   console.log(`[ProtectedRoute] Path: ${location.pathname} - Checking auth...`, {
     isLoading,

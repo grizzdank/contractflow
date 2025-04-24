@@ -57,11 +57,12 @@ const Navigation = () => {
 
   console.log('[Navigation] Rendering navigation for authenticated user');
   return (
-    <nav className="fixed top-0 left-0 right-0 bg-white dark:bg-gray-900 border-b z-50">
+    <nav className="fixed top-0 left-0 right-0 bg-white border-b z-50">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <span className="text-xl font-bold">ContractFlow</span>
+            <img src="/logo-new-no-text.png" alt="ContractFlow Logo" className="h-8 w-auto" />
+            <span className="text-xl font-bold">ContractFlo.ai</span>
           </Link>
 
           <div className="hidden md:flex items-center gap-6">

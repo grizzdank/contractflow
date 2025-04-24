@@ -20,7 +20,6 @@ import { UserRole } from "@/domain/types/Auth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import ProtectedLayout from "@/components/ProtectedLayout";
 import { clerkConfig } from "@/lib/clerk/client";
-import InitializeClerkSession from "@/components/InitializeClerkSession";
 import "./App.css";
 
 // Helper component to encapsulate the protected providers + layout
@@ -29,9 +28,7 @@ const ProtectedRoutesWrapper = () => {
   return (
     <SignedIn>
       <ClerkAuthProvider>
-        <InitializeClerkSession>
-          <ProtectedLayout />
-        </InitializeClerkSession>
+        <ProtectedLayout />
       </ClerkAuthProvider>
     </SignedIn>
   );
@@ -91,11 +88,10 @@ function App() {
               }
             >
               {/* Define routes nested *within* the ProtectedRoutesWrapper layout */}
-              <Route index element={<Index />} />
-              <Route path="contracts" element={<Contracts />} />
-              <Route path="contracts/:contractNumber" element={<ContractDetails />} />
+              {/* Specific routes first */}
+              <Route index element={<Index />} /> 
               <Route 
-                path="request" 
+                path="contracts/request"
                 element={
                   <ProtectedRoute allowedRoles={[UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.CONTRIBUTOR]}>
                     <ContractRequest />
@@ -110,14 +106,17 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-              <Route 
+              <Route path="contracts" element={<Contracts />} />
+              {/* Dynamic route last */}
+              <Route path="contracts/:contractNumber" element={<ContractDetails />} /> 
+              {/* <Route 
                 path="team" 
                 element={
                   <ProtectedRoute allowedRoles={[UserRole.ADMINISTRATOR, UserRole.MANAGER]}>
                     <Team />
                   </ProtectedRoute>
                 }
-              />
+              /> */}
               <Route path="notifications" element={<Notifications />} />
               <Route path="unauthorized" element={<Unauthorized />} />
               <Route path="*" element={<NotFound />} />
