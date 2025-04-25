@@ -24,19 +24,47 @@ const ContactPage = () => {
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    console.log("Contact Form Data:", formData); 
-    
-    // Simulate backend submission
-    await new Promise(resolve => setTimeout(resolve, 1000)); 
+    console.log("Submitting to Formspree:", formData);
 
-    // Replace with actual submission logic later (e.g., API call)
-    toast({
-      title: "Message Sent!",
-      description: "Thank you for contacting us. We'll get back to you shortly.",
-    });
+    try {
+      const response = await fetch("https://formspree.io/f/mrbqbppg", {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
+      });
 
-    setFormData({ name: "", email: "", company: "", message: "" });
-    setIsSubmitting(false);
+      if (response.ok) {
+        console.log("Formspree submission successful");
+        toast({
+          title: "Message Sent!",
+          description: "Thank you for contacting us. We'll get back to you shortly.",
+        });
+        setFormData({ name: "", email: "", company: "", message: "" }); // Reset form on success
+      } else {
+        // Try to parse error from Formspree if possible
+        let errorMessage = "An error occurred during submission.";
+        try {
+            const errorData = await response.json();
+            errorMessage = errorData.errors?.map((err: any) => err.message).join(", ") || errorMessage;
+        } catch (parseError) {
+            console.error("Could not parse Formspree error response", parseError);
+        }
+        console.error("Formspree submission failed:", response.statusText, errorMessage);
+        throw new Error(errorMessage);
+      }
+    } catch (error: any) {
+      console.error('Error submitting contact form:', error);
+      toast({
+        title: "Error Sending Message",
+        description: error.message || "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
