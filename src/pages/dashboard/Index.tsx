@@ -7,7 +7,7 @@ import { Link } from "react-router-dom";
 const Index = () => {
   return (
       <div className="pt-16">
-        <div className="max-w-7xl mx-auto space-y-8 fade-in p-6">
+        <div className="space-y-8 fade-in p-6">
           {/* Header */}
           <header className="text-center space-y-4">
             <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-emerald-700 to-orange-600 bg-clip-text text-transparent">
