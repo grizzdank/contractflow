@@ -9,6 +9,8 @@ import Auth from "@/pages/Auth";
 import LandingPage from "@/pages/public/LandingPage";
 import WaitlistPage from "@/pages/public/Waitlist";
 import ContactPage from "@/pages/public/Contact";
+import TermsPage from "@/pages/public/TermsPage";
+import PrivacyPage from "@/pages/public/PrivacyPage";
 import Index from "@/pages/dashboard/Index";
 import Contracts from "@/pages/dashboard/Contracts";
 import ContractDetails from "@/pages/dashboard/ContractDetails";
@@ -56,6 +58,8 @@ const AppRoutes = () => {
       <Route path="/" element={<LandingPage />} />
       <Route path="/waitlist" element={<WaitlistPage />} />
       <Route path="/contact" element={<ContactPage />} />
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
       
       {/* Auth routes - Render Auth directly */}
       <Route 
