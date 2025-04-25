@@ -27,7 +27,6 @@ import {
   SortingState,
 } from "@tanstack/react-table";
 import { ArrowUpDown, FileText, Search, Filter, CheckCircle, Clock, Edit, Users, Loader2, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react";
-import Navigation from "@/components/Navigation";
 import { Contract } from "@/domain/types/Contract";
 import { toast } from "@/components/ui/use-toast";
 import { createAuthenticatedSupabaseClient } from "@/lib/supabase/client";
@@ -171,7 +170,7 @@ export const columns: ColumnDef<Contract>[] = [
       </Button>
     ),
     cell: ({ row }) => (
-      <Link to={`/contracts/${row.original.contractNumber}`} className="hover:underline text-blue-600">
+      <Link to={`/dashboard/contracts/${row.original.contractNumber}`} className="hover:underline text-blue-600">
         {row.getValue("contractNumber") || "Pending"}
       </Link>
     ),
@@ -420,11 +419,10 @@ const Contracts = () => {
 
   return (
     <div className="flex h-screen bg-gray-100">
-      <Navigation />
       <main className="flex-1 p-6 overflow-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-semibold text-gray-800">Contracts</h1>
-          <Link to="/contracts/request">
+          <Link to="/dashboard/contracts/request">
             <Button>Request New Contract</Button>
           </Link>
         </div>
@@ -555,7 +553,7 @@ const Contracts = () => {
                     <TableRow
                       key={row.id}
                       data-state={row.getIsSelected() && "selected"}
-                      onClick={() => navigate(`/contracts/${row.original.contractNumber}`)}
+                      onClick={() => navigate(`/dashboard/contracts/${row.original.contractNumber}`)}
                       className="cursor-pointer hover:bg-gray-50"
                     >
                       {row.getVisibleCells().map((cell) => (

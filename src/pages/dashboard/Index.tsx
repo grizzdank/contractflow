@@ -3,12 +3,9 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { GanttChartSquare, Users2, Bell, Calendar } from "lucide-react";
 import { Link } from "react-router-dom";
-import Navigation from "@/components/Navigation";
 
 const Index = () => {
   return (
-    <>
-      <Navigation />
       <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-orange-50 pt-16">
         <div className="max-w-7xl mx-auto space-y-8 fade-in p-6">
           {/* Header */}
@@ -26,7 +23,7 @@ const Index = () => {
 
           {/* Quick Actions Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Link to="/contracts">
+          <Link to="/dashboard/contracts">
               <QuickActionCard
                 icon={<GanttChartSquare className="h-6 w-6" />}
                 title="Contracts"
@@ -34,7 +31,7 @@ const Index = () => {
                 gradientClass="from-emerald-500 to-green-500"
               />
             </Link>
-            <Link to="/contracts/request">
+          <Link to="/dashboard/contracts/request">
               <QuickActionCard
                 icon={<GanttChartSquare className="h-6 w-6" />}
                 title="Request Contract"
@@ -42,7 +39,7 @@ const Index = () => {
                 gradientClass="from-green-500 to-teal-500"
               />
             </Link>
-            <Link to="/team">
+          <Link to="/dashboard/team">
               <QuickActionCard
                 icon={<Users2 className="h-6 w-6" />}
                 title="Team"
@@ -50,7 +47,7 @@ const Index = () => {
                 gradientClass="from-teal-500 to-orange-400"
               />
             </Link>
-            <Link to="/notifications">
+          <Link to="/dashboard/notifications">
               <QuickActionCard
                 icon={<Bell className="h-6 w-6" />}
                 title="Notifications"
@@ -81,7 +78,6 @@ const Index = () => {
           </section>
         </div>
       </div>
-    </>
   );
 };
 

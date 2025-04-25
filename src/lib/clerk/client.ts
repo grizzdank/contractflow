@@ -21,9 +21,12 @@ export const clerkConfig = {
   // Modern redirect configuration
   signInUrl: '/auth',
   signUpUrl: '/sign-up',
-  // Use the new redirect props instead of the deprecated ones
-  redirectUrl: '/',
-  fallbackRedirectUrl: '/',
+  // Restore fallbackRedirectUrl - needed for standard redirects
+  fallbackRedirectUrl: '/dashboard',
   // Development debugging
-  debug: import.meta.env.DEV,
+  debug: true,
+  // Remove custom router functions - let ClerkProvider handle it via Router context
+  // routerPush: ...
+  // routerReplace: ...
+  // routerDebug: ...
 }; 
