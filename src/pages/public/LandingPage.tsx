@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import PublicNavigation from "@/components/PublicNavigation";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabase/client";
+import Footer from "@/components/Footer";
 
 const LandingPage = () => {
   return (
@@ -100,6 +101,7 @@ const LandingPage = () => {
             </div>
           </div>
         </div>
+        <Footer />
       </div>
   );
 };

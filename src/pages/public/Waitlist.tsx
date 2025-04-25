@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabase/client"; // Assuming shared client is okay
 import PublicNavigation from "@/components/PublicNavigation"; // Import shared component
+import Footer from "@/components/Footer"; // Import shared component
 
 const WaitlistPage = () => {
   const [email, setEmail] = useState("");
@@ -93,6 +94,7 @@ const WaitlistPage = () => {
           </form>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };

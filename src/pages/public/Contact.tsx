@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Link } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
 import PublicNavigation from "@/components/PublicNavigation";
+import Footer from "@/components/Footer";
 
 const ContactPage = () => {
   const [formData, setFormData] = useState({
@@ -97,6 +98,7 @@ const ContactPage = () => {
           </form>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };
