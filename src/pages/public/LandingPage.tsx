@@ -85,9 +85,6 @@ const LandingPage = () => {
         {/* Hero Section */}
         <div className="max-w-7xl mx-auto px-6 pt-24 pb-16">
           <div className="text-center space-y-8">
-            <div className="inline-block px-4 py-1 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-full text-sm font-medium">
-              Coming Soon
-            </div>
             <h1 className="text-5xl font-bold tracking-tight bg-gradient-to-r from-emerald-700 to-orange-600 bg-clip-text text-transparent">
               Contract Management <br />Made Simple
             </h1>
@@ -158,14 +155,6 @@ const LandingPage = () => {
                 title="Smart Notifications"
                 description="Never miss important deadlines with automated reminders."
               />
-            </Link>
-          </div>
-
-          <div className="text-center mt-12">
-          <Link to="/auth" state={{ redirectTo: "/dashboard" }}>
-              <Button size="lg" variant="outline" className="hover-effect">
-                Try Demo <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
             </Link>
           </div>
         </div>
