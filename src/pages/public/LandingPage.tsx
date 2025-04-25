@@ -4,31 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { GanttChartSquare, Users2, Bell, Calendar, ArrowRight, Search, FileClock, PenTool, BarChart3, KeyRound, Workflow } from "lucide-react";
 import { Link } from "react-router-dom";
+import PublicNavigation from "@/components/PublicNavigation";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabase/client";
 
 const LandingPage = () => {
   return (
       <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-orange-50">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-sm border-b">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 text-xl font-bold text-emerald-600">
-            <img src="/logo-new-no-text.png" alt="ContractFlow Logo" className="h-8 w-auto" />
-            <span>ContractFlo.ai</span>
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link to="/auth">
-              <Button variant="ghost">Login</Button>
-            </Link>
-            <Link to="/sign-up">
-              <Button className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700">
-                Sign Up
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </nav>
+      {/* Use Shared Navigation */}
+      <PublicNavigation />
 
         {/* Hero Section */}
         <div className="max-w-7xl mx-auto px-6 pt-24 pb-16">

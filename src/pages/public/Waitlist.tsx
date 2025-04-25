@@ -4,28 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Link } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabase/client"; // Assuming shared client is okay
-
-// Note: We might want a shared public navigation component later
-const PublicNav = () => (
-  <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-sm border-b">
-    <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-      <Link to="/" className="flex items-center gap-2 text-xl font-bold text-emerald-600">
-        <img src="/logo-new-no-text.png" alt="ContractFlow Logo" className="h-8 w-auto" />
-        <span>ContractFlo.ai</span>
-      </Link>
-      <div className="flex items-center gap-4">
-        <Link to="/auth">
-          <Button variant="ghost">Login</Button>
-        </Link>
-        <Link to="/sign-up">
-          <Button className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700">
-            Sign Up
-          </Button>
-        </Link>
-      </div>
-    </div>
-  </nav>
-);
+import PublicNavigation from "@/components/PublicNavigation"; // Import shared component
 
 const WaitlistPage = () => {
   const [email, setEmail] = useState("");
@@ -77,7 +56,7 @@ const WaitlistPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-orange-50">
-      <PublicNav /> {/* Include Navigation */}
+      <PublicNavigation />
       <div className="max-w-7xl mx-auto px-6 pt-24 pb-16 flex items-center justify-center">
         <div className="max-w-md w-full space-y-8 bg-white/80 backdrop-blur-sm p-8 rounded-lg shadow-lg">
           <div className="text-center">
