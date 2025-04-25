@@ -1,0 +1,125 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Link } from "react-router-dom";
+import { toast } from "@/components/ui/use-toast";
+
+// Note: We might want a shared public navigation component later
+const PublicNav = () => (
+  <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-sm border-b">
+    <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+      <Link to="/" className="flex items-center gap-2 text-xl font-bold text-emerald-600">
+        <img src="/logo-new-no-text.png" alt="ContractFlow Logo" className="h-8 w-auto" />
+        <span>ContractFlo.ai</span>
+      </Link>
+      <div className="flex items-center gap-4">
+        <Link to="/auth">
+          <Button variant="ghost">Login</Button>
+        </Link>
+        <Link to="/sign-up">
+          <Button className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700">
+            Sign Up
+          </Button>
+        </Link>
+      </div>
+    </div>
+  </nav>
+);
+
+const ContactPage = () => {
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    company: "",
+    message: "",
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleContactSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    console.log("Contact Form Data:", formData); 
+    
+    // Simulate backend submission
+    await new Promise(resolve => setTimeout(resolve, 1000)); 
+
+    // Replace with actual submission logic later (e.g., API call)
+    toast({
+      title: "Message Sent!",
+      description: "Thank you for contacting us. We'll get back to you shortly.",
+    });
+
+    setFormData({ name: "", email: "", company: "", message: "" });
+    setIsSubmitting(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-orange-50">
+      <PublicNav /> {/* Include Navigation */}
+      <div className="max-w-7xl mx-auto px-6 pt-24 pb-16 flex items-center justify-center">
+        <div className="max-w-lg w-full space-y-8 bg-white/80 backdrop-blur-sm p-8 rounded-lg shadow-lg">
+          <div className="text-center">
+            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-emerald-700 to-orange-600 bg-clip-text text-transparent">
+              Contact Us
+            </h1>
+            <p className="mt-2 text-gray-600">
+              Have questions about features or pricing? Let us know!
+            </p>
+          </div>
+          <form onSubmit={handleContactSubmit} className="space-y-4">
+            <Input
+              type="text"
+              name="name"
+              placeholder="Your Name"
+              value={formData.name}
+              onChange={handleChange}
+              required
+              className="w-full"
+            />
+            <Input
+              type="email"
+              name="email"
+              placeholder="Your Email"
+              value={formData.email}
+              onChange={handleChange}
+              required
+              className="w-full"
+            />
+            <Input
+              type="text"
+              name="company"
+              placeholder="Company Name (Optional)"
+              value={formData.company}
+              onChange={handleChange}
+              className="w-full"
+            />
+            <Textarea
+              name="message"
+              placeholder="Your Message"
+              value={formData.message}
+              onChange={handleChange}
+              required
+              rows={4}
+              className="w-full"
+            />
+            <Button 
+              type="submit" 
+              className="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Sending..." : "Send Message"}
+            </Button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ContactPage; 

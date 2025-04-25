@@ -7,6 +7,8 @@ import { ClerkAuthProvider } from "@/contexts/ClerkAuthContext";
 // Pages
 import Auth from "@/pages/Auth";
 import LandingPage from "@/pages/public/LandingPage";
+import WaitlistPage from "@/pages/public/Waitlist";
+import ContactPage from "@/pages/public/Contact";
 import Index from "@/pages/dashboard/Index";
 import Contracts from "@/pages/dashboard/Contracts";
 import ContractDetails from "@/pages/dashboard/ContractDetails";
@@ -52,6 +54,8 @@ const AppRoutes = () => {
     <Routes>
       {/* Public routes accessible to all */}
       <Route path="/" element={<LandingPage />} />
+      <Route path="/waitlist" element={<WaitlistPage />} />
+      <Route path="/contact" element={<ContactPage />} />
       
       {/* Auth routes - Render Auth directly */}
       <Route 

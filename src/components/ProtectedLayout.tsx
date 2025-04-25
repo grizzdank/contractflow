@@ -2,6 +2,7 @@ import { useEffect, ReactNode } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Navigation from './Navigation';
+import Footer from './Footer';
 
 interface ProtectedLayoutProps {
   children: ReactNode;
@@ -71,6 +72,7 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
       <main className="container mx-auto px-4 py-8">
         {children}
       </main>
+      <Footer />
     </div>
   );
 }

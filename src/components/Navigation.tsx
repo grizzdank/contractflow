@@ -60,12 +60,18 @@ const Navigation = () => {
     <nav className="fixed top-0 left-0 right-0 bg-white border-b z-50">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
-          <Link to="/dashboard" className="flex items-center gap-2">
+          <Link 
+            to="/dashboard" 
+            className="flex items-center gap-2 transition-transform duration-200 ease-in-out hover:scale-105"
+          >
             <img src="/logo-new-no-text.png" alt="ContractFlow Logo" className="h-8 w-auto" />
             <span className="text-xl font-bold">ContractFlo.ai</span>
           </Link>
 
           <div className="hidden md:flex items-center gap-6">
+            <Link to="/dashboard/contracts/request">
+              <Button variant="ghost">New Request</Button>
+            </Link>
             <Link to="/dashboard/contracts">
               <Button variant="ghost">Contracts</Button>
             </Link>
@@ -93,6 +99,11 @@ const Navigation = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem asChild>
+                  <Link to="/dashboard/contracts/request" className="w-full">
+                    New Request
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link to="/dashboard/contracts" className="w-full">
                     Contracts

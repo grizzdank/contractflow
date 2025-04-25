@@ -2,64 +2,12 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { GanttChartSquare, Users2, Bell, Calendar, ArrowRight } from "lucide-react";
+import { GanttChartSquare, Users2, Bell, Calendar, ArrowRight, Search, FileClock, PenTool, BarChart3, KeyRound, Workflow } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabase/client";
 
 const LandingPage = () => {
-  const [email, setEmail] = useState("");
-  const [companyName, setCompanyName] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleWaitlistSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-
-    try {
-      // Check if we can connect to Supabase
-      const { error: connectionError } = await supabase.from('waitlist').select('count').limit(0);
-      if (connectionError) {
-        console.error('Supabase connection error:', connectionError);
-        // Fall back to mock success for demo
-        await new Promise(resolve => setTimeout(resolve, 800));
-        toast({
-          title: "Success! (Demo Mode)",
-          description: "You've been added to our waitlist. We'll be in touch soon! (Note: This is running in demo mode due to connection issues)",
-        });
-        setEmail("");
-        setCompanyName("");
-        return;
-      }
-
-      const { error } = await supabase
-        .from('waitlist')
-        .insert([{ 
-          email, 
-          company_name: companyName 
-        }]);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success!",
-        description: "You've been added to our waitlist. We'll be in touch soon!",
-      });
-
-      setEmail("");
-      setCompanyName("");
-    } catch (error: any) {
-      console.error('Waitlist submission error:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Something went wrong. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   return (
       <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-orange-50">
       {/* Navigation */}
@@ -90,34 +38,7 @@ const LandingPage = () => {
             </h1>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
               Streamline your contract workflow with our intuitive platform designed for small businesses.
-              Join the waitlist to be notified when we launch!
             </p>
-
-            {/* Waitlist Form */}
-            <form onSubmit={handleWaitlistSubmit} className="max-w-md mx-auto space-y-4">
-              <Input
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full"
-              />
-              <Input
-                type="text"
-                placeholder="Company name (optional)"
-                value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
-                className="w-full"
-              />
-              <Button 
-                type="submit" 
-                className="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? "Joining..." : "Join Waitlist"}
-              </Button>
-            </form>
           </div>
         </div>
 
@@ -125,37 +46,74 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-6 py-16">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900">
-              Preview Our Features
+              Core Features
             </h2>
             <p className="mt-4 text-lg text-gray-600">
-              Take a look at what we're building
+              Everything you need to manage contracts efficiently.
             </p>
           </div>
 
+          {/* Updated Feature Grid - No longer links */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          <Link to="/auth" state={{ redirectTo: "/dashboard/contracts" }} className="block hover:no-underline">
               <FeatureCard
                 icon={<GanttChartSquare className="h-6 w-6" />}
-                title="Contract Management"
-                description="Centralize and organize all your contracts in one secure location."
+                title="Centralized Repository"
+                description="Organize all contracts and related documents in one secure, accessible place."
               />
-            </Link>
-            
-          <Link to="/auth" state={{ redirectTo: "/dashboard/team" }} className="block hover:no-underline">
+              <FeatureCard
+                icon={<Bell className="h-6 w-6" />}
+                title="Automated Reminders"
+                description="Never miss key dates like renewals or expirations with smart notifications."
+              />
+              <FeatureCard
+                icon={<PenTool className="h-6 w-6" />}
+                title="E-Signature Integration"
+                description="Streamline approvals with built-in support for leading e-signature providers."
+              />
+              <FeatureCard
+                icon={<Search className="h-6 w-6" />}
+                title="Advanced Search & Filter"
+                description="Quickly find any contract or clause with powerful search capabilities."
+              />
               <FeatureCard
                 icon={<Users2 className="h-6 w-6" />}
                 title="Team Collaboration"
-                description="Work together seamlessly with role-based access control."
+                description="Work together seamlessly with role-based access and commenting."
               />
-            </Link>
-            
-          <Link to="/auth" state={{ redirectTo: "/dashboard/notifications" }} className="block hover:no-underline">
               <FeatureCard
-                icon={<Bell className="h-6 w-6" />}
-                title="Smart Notifications"
-                description="Never miss important deadlines with automated reminders."
+                icon={<BarChart3 className="h-6 w-6" />}
+                title="Reporting & Analytics"
+                description="Gain insights into your contract portfolio with customizable reports."
               />
-            </Link>
+          </div>
+
+          {/* Combined CTA Section */} 
+          <div className="text-center mt-16"> 
+            <h3 className="text-2xl font-semibold text-gray-800 mb-4">Ready to Learn More?</h3>
+            <p className="text-gray-600 mb-8 max-w-xl mx-auto">
+              Join the waitlist for launch notifications or contact our team to discuss pricing and features.
+            </p>
+            {/* Button Group */}
+            <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
+               {/* ADD Waitlist button link here */}
+              <Link to="/waitlist">
+                <Button 
+                  size="lg" 
+                  variant="outline" /* Changed variant */
+                  className="hover-effect border-emerald-300 text-emerald-700 hover:text-emerald-800 hover:border-emerald-400"
+                 >
+                  Join Waitlist
+                </Button>
+              </Link>
+              <Link to="/contact">
+                <Button 
+                  size="lg" 
+                  className="hover-effect bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700"
+                >
+                  Contact Sales
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </div>

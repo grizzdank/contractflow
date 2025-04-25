@@ -10,9 +10,6 @@ const Index = () => {
         <div className="max-w-7xl mx-auto space-y-8 fade-in p-6">
           {/* Header */}
           <header className="text-center space-y-4">
-            <div className="inline-block px-4 py-1 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-full text-sm font-medium mb-4">
-              Welcome to ContractFlo
-            </div>
             <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-emerald-700 to-orange-600 bg-clip-text text-transparent">
               Contract Management Made Simple
             </h1>
@@ -23,26 +20,26 @@ const Index = () => {
 
           {/* Quick Actions Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Link to="/dashboard/contracts">
-              <QuickActionCard
-                icon={<GanttChartSquare className="h-6 w-6" />}
-                title="Contracts"
-                description="Track and manage active contracts"
-                gradientClass="from-emerald-500 to-green-500"
-              />
-            </Link>
           <Link to="/dashboard/contracts/request">
               <QuickActionCard
                 icon={<GanttChartSquare className="h-6 w-6" />}
-                title="Request Contract"
+                title="Request New Contract"
                 description="Submit a new contract request with SOW"
                 gradientClass="from-green-500 to-teal-500"
+              />
+            </Link>
+            <Link to="/dashboard/contracts">
+              <QuickActionCard
+                icon={<GanttChartSquare className="h-6 w-6" />}
+                title="Contracts Tracker"
+                description="Track and manage active contracts"
+                gradientClass="from-emerald-500 to-green-500"
               />
             </Link>
           <Link to="/dashboard/team">
               <QuickActionCard
                 icon={<Users2 className="h-6 w-6" />}
-                title="Team"
+                title="Team Management"
                 description="Collaborate with your team members efficiently"
                 gradientClass="from-teal-500 to-orange-400"
               />
@@ -50,7 +47,7 @@ const Index = () => {
           <Link to="/dashboard/notifications">
               <QuickActionCard
                 icon={<Bell className="h-6 w-6" />}
-                title="Notifications"
+                title="Notifications Settings"
                 description="Stay updated with important contract deadlines"
                 gradientClass="from-orange-400 to-orange-500"
               />
