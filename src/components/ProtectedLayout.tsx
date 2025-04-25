@@ -67,7 +67,7 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
 
   console.log('[ProtectedLayout] Rendering protected content');
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-orange-50">
       <Navigation />
       <main className="container mx-auto px-4 py-8">
         {children}

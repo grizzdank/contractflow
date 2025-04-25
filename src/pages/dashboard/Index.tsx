@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 
 const Index = () => {
   return (
-      <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-orange-50 pt-16">
+      <div className="pt-16">
         <div className="max-w-7xl mx-auto space-y-8 fade-in p-6">
           {/* Header */}
           <header className="text-center space-y-4">

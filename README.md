@@ -25,6 +25,7 @@ ContractFlo tackles the challenge of inconsistent contract handling and the risk
 - **shadcn/UI & Radix UI:** Component libraries for consistent UI elements
 - **Supabase:** Backend-as-a-Service for database, authentication, and storage
 - **Bun:** Fast JavaScript runtime and package manager
+- **Clerk:** Authentication component
 
 ## Getting Started
 
@@ -36,10 +37,10 @@ ContractFlo tackles the challenge of inconsistent contract handling and the risk
 
 ```sh
 # Clone the repository
-git clone https://github.com/yourusername/contractflo.git
+git clone https://github.com/yourusername/contractflow.git
 
 # Navigate to the project directory
-cd contractflo
+cd contractflow
 
 # Install dependencies
 bun install

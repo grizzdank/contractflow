@@ -418,7 +418,7 @@ const Contracts = () => {
   }
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen">
       <main className="flex-1 p-6 overflow-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-semibold text-gray-800">Contracts</h1>

@@ -690,7 +690,7 @@ const ContractDetails = () => {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex min-h-screen">
       <Navigation />
       <main className="flex-1 p-6 overflow-auto space-y-6">
          {error && contract && (
