@@ -667,7 +667,7 @@ const ContractDetails = () => {
           <Alert variant="destructive" className="max-w-md mb-4">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
-          <Button variant="outline" onClick={() => navigate('/contracts')} className="mt-4">
+          <Button variant="outline" onClick={() => navigate('/dashboard/contracts')} className="mt-4">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Contracts List
           </Button>
         </main>
@@ -681,7 +681,7 @@ const ContractDetails = () => {
             <Navigation />
             <main className="flex-1 p-6 flex flex-col items-center justify-center">
                 <p className="text-gray-500">Contract not found.</p>
-                 <Button variant="outline" onClick={() => navigate('/contracts')} className="mt-4">
+                 <Button variant="outline" onClick={() => navigate('/dashboard/contracts')} className="mt-4">
                     <ArrowLeft className="mr-2 h-4 w-4" /> Back to Contracts List
                 </Button>
             </main>
@@ -702,7 +702,7 @@ const ContractDetails = () => {
           <Button 
             variant="outline" 
             size="sm"
-            onClick={() => navigate('/contracts')} 
+            onClick={() => navigate('/dashboard/contracts')} 
          >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Contracts List

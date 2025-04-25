@@ -57,7 +57,8 @@ const Index = () => {
             </Link>
           </div>
 
-          {/* Get Started Section */}
+          {/* Get Started Section - REMOVE THIS SECTION */}
+          {/* 
           <section className="glass-panel p-8 text-center space-y-6 bg-gradient-to-r from-green-50 to-orange-50">
             <h2 className="text-2xl font-semibold bg-gradient-to-r from-emerald-600 to-orange-600 bg-clip-text text-transparent">
               Ready to Get Started?
@@ -76,6 +77,7 @@ const Index = () => {
               </Button>
             </div>
           </section>
+          */}
         </div>
       </div>
   );

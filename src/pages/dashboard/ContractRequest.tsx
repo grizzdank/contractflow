@@ -413,8 +413,20 @@ const ContractRequest = () => {
                 )}
               </Card>
 
-             <div className="flex justify-end">
-               <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700" disabled={isSubmitting}>
+             <div className="flex justify-end gap-4">
+               <Button 
+                 type="button"
+                 variant="outline" 
+                 onClick={() => navigate('/dashboard')} 
+                 disabled={isSubmitting}
+               >
+                 Cancel
+               </Button>
+               <Button 
+                 type="submit" 
+                 className="bg-emerald-600 hover:bg-emerald-700" 
+                 disabled={isSubmitting}
+               >
                  {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
                   {isSubmitting ? "Submitting..." : "Submit Request"}
                </Button>

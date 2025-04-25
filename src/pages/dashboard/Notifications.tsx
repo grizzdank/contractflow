@@ -29,7 +29,7 @@ const Notifications = () => {
               <p className="text-gray-500 mb-6">
                 You'll receive notifications here when there are updates to your contracts or when deadlines are approaching.
               </p>
-              <Link to="/contracts">
+              <Link to="/dashboard/contracts">
                 <Button className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700">
                   View Your Contracts
                 </Button>
