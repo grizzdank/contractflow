@@ -1,8 +1,10 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
-import { useAuth, useUser } from '@clerk/clerk-react';
+import { useAuth, useUser, useSession, useClerk } from '@clerk/clerk-react';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { createAuthenticatedSupabaseClient } from '../lib/supabase/client'; // Corrected path
 import { Database } from '@/lib/supabase/types'; // Ensure Database type is imported
+import { ContractService } from '@/services/ContractService'; // <-- Import ContractService
+import { UserResource } from '@clerk/types';
 
 // type DbProfile = Database['public']['Tables']['profiles']['Row']; // profiles table type
 // Define type for organization_members row
@@ -27,11 +29,28 @@ interface AuthState {
   user: ContextAuthUser;
   error: Error | null;
   authenticatedSupabase: SupabaseClient<Database> | null;
+  contractServiceInstance: ContractService | null; // <-- Add service state
+}
+
+interface UserDetails {
+  clerkUserId?: string | null;
+  supabaseUserId?: string | null;
+  email?: string | null;
+  fullName?: string | null;
+  role?: string | null;
+  organizationId?: string | null;
 }
 
 // Define the context type including the getToken function
-export interface ClerkAuthContextType extends AuthState {
+export interface ClerkAuthContextType { //extends AuthState {
+  user: UserResource | null | undefined; // Use Clerk's type 
+  userDetails: UserDetails | null; // Use our combined details type
+  isLoading: boolean;
   getToken: (options?: { template?: string }) => Promise<string | null>;
+  authenticatedSupabase: SupabaseClient<Database> | null;
+  error: Error | null; // An auth error
+  contractServiceInstance: ContractService | null; // A service instance
+  isAuthenticated: boolean; // Authentication status flag
 }
 
 // Create the context with a default value
@@ -51,6 +70,7 @@ const initialAuthState: AuthState = {
   },
   error: null,
   authenticatedSupabase: null,
+  contractServiceInstance: null, // <-- Initialize service state
 };
 
 // Define the provider component props
@@ -62,6 +82,8 @@ interface ClerkAuthProviderProps {
 export const ClerkAuthProvider: React.FC<ClerkAuthProviderProps> = ({ children }) => {
   const { isSignedIn, sessionId, getToken } = useAuth();
   const { user: clerkUser, isLoaded: clerkUserLoaded } = useUser();
+  const { session } = useSession();
+  const clerkInstance = useClerk();
   const [authState, setAuthState] = useState<AuthState>(initialAuthState);
 
   // Effect 1: Initialize authenticated Supabase client
@@ -138,16 +160,17 @@ export const ClerkAuthProvider: React.FC<ClerkAuthProviderProps> = ({ children }
           const organizationId: string | null = memberData?.organization_id ?? null;
           console.log(`[ClerkAuthProvider] Effect 2: Fetched from org_members - Role: ${userRole ?? 'Not found'}, Org ID: ${organizationId ?? 'Not found'}`);
 
-          // Fetch/Assume Supabase User ID (using Clerk ID based on previous assumption)
+          // --- START: Get Supabase User ID from Clerk Metadata --- 
           let supabaseUserId: string | null = null;
-          if (primaryEmail) {
-             console.log(`[ClerkAuthProvider] Effect 2: Assigning Supabase User ID based on Clerk User ID.`);
-             supabaseUserId = clerkUserId;
-             console.log(`[ClerkAuthProvider] Effect 2: ASSIGNED Supabase User ID (as Clerk ID): ${supabaseUserId}`);
+          if (clerkUser.publicMetadata && typeof clerkUser.publicMetadata.supabase_id === 'string') {
+            supabaseUserId = clerkUser.publicMetadata.supabase_id;
+            console.log(`[ClerkAuthProvider] Effect 2: Retrieved Supabase User ID from Clerk Metadata: ${supabaseUserId}`);
           } else {
-             console.warn("[ClerkAuthProvider] Effect 2: Cannot assign Supabase User ID because primary email is missing.");
+            console.warn("[ClerkAuthProvider] Effect 2: Supabase User ID not found in Clerk publicMetadata.");
+             // TODO: Consider if this is an error state - should we try to fetch/sync?
+             // For now, we'll leave supabaseUserId as null if not found in metadata.
           }
-
+          // --- END: Get Supabase User ID from Clerk Metadata ---
 
           if (isMounted) {
             setAuthState(prev => ({
@@ -160,6 +183,35 @@ export const ClerkAuthProvider: React.FC<ClerkAuthProviderProps> = ({ children }
             }));
             console.log(`[ClerkAuthProvider] Effect 2: User profile updated (Role: ${userRole ?? 'None'}, SupabaseID: ${supabaseUserId ?? 'None'}, OrgID: ${organizationId ?? 'None'}).`);
           }
+
+          // *** Create ContractService instance HERE ***
+          // Use local variables for the check, as authState might not be updated yet
+          // Pass getToken along with user details
+          if (authState.authenticatedSupabase && organizationId && supabaseUserId && primaryEmail && getToken && !authState.contractServiceInstance) { 
+              console.log('[ClerkAuthProvider] Effect 2: Creating ContractService instance with retrieved details and getToken...');
+              try {
+                  // REMOVE: supabaseClient variable (no longer passed)
+                  // Pass getToken and user/org details
+                  const service = new ContractService(getToken, organizationId, supabaseUserId, primaryEmail);
+                  if (isMounted) {
+                      setAuthState(prev => ({ ...prev, contractServiceInstance: service }));
+                      console.log('[ClerkAuthProvider] Effect 2: ContractService instance created successfully.');
+                  }
+              } catch(serviceError) {
+                   console.error("[ClerkAuthProvider] Effect 2: Error creating ContractService instance:", serviceError);
+                   // Decide how to handle this - maybe set an error state?
+              }
+          } else {
+               // Log why it might be skipped
+               const skipReason = !authState.authenticatedSupabase ? "Supabase client not ready" 
+                               : !organizationId ? "Org ID missing"
+                               : !supabaseUserId ? "Supabase User ID missing"
+                               : !primaryEmail ? "Primary email missing"
+                               : authState.contractServiceInstance ? "Service already exists"
+                               : "Unknown reason";
+               console.log(`[ClerkAuthProvider] Effect 2: Skipping ContractService creation (${skipReason}).`);
+          }
+
         } catch (error) {
           console.error("[ClerkAuthProvider] Effect 2: Error fetching user profile:", error);
           if (isMounted) {
@@ -191,18 +243,28 @@ export const ClerkAuthProvider: React.FC<ClerkAuthProviderProps> = ({ children }
       console.log("[ClerkAuthProvider] Effect 2: Cleanup.");
     };
     // Dependencies: Run when client is ready, Clerk user loads, or Clerk user changes
-  }, [authState.authenticatedSupabase, clerkUserLoaded, clerkUser]); // Add clerkUser here
+  }, [authState.authenticatedSupabase, clerkUserLoaded, clerkUser, getToken]); // Add clerkUser here
 
+  // *** Construct the userDetails object - FINAL ATTEMPT ***
+  const userDetails: UserDetails | null = clerkUserLoaded && clerkUser ? {
+    clerkUserId: clerkUser.id,
+    supabaseUserId: authState.user.supabaseUserId,         // Correct: Direct access
+    email: clerkUser.primaryEmailAddress?.emailAddress,
+    fullName: clerkUser.fullName,
+    role: authState.user.role,                   // Correct: Direct access
+    organizationId: authState.user.organizationId,     // Correct: Direct access
+  } : null;
 
-  // Provide a stable getToken function
-  const stableGetToken = useCallback(getToken, [getToken]);
-
-  // Memoize the context value to prevent unnecessary re-renders
-  const contextValue = React.useMemo(() => ({
-    ...authState,
-    getToken: stableGetToken,
-  }), [authState, stableGetToken]);
-
+  const contextValue: ClerkAuthContextType = {
+    user: clerkUser,
+    userDetails: userDetails,
+    isLoading: authState.isLoading || !clerkUserLoaded,
+    getToken,
+    authenticatedSupabase: authState.authenticatedSupabase,
+    error: authState.error,
+    contractServiceInstance: authState.contractServiceInstance,
+    isAuthenticated: authState.isAuthenticated,
+  };
 
   return (
     <ClerkAuthContext.Provider value={contextValue}>

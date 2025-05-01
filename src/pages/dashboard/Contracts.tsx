@@ -294,39 +294,17 @@ const Contracts = () => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const navigate = useNavigate();
 
-  const { user, isLoading: isAuthLoading, getToken, error: authError } = useClerkAuth();
-  const organizationId = user?.organizationId;
+  const { userDetails, getToken, isLoading: isAuthLoading } = useClerkAuth();
+  const organizationId = userDetails?.organizationId;
 
-  const loadContracts = async () => {
-    console.log('[Contracts] loadContracts called');
-    
-    if (isAuthLoading) {
-      console.log('[Contracts] Auth context still loading. Aborting contract fetch.');
-      setIsLoadingContracts(false);
-      return;
+  const loadContracts = useCallback(async () => {
+    if (!organizationId || !getToken) {
+        console.error("[Contracts] loadContracts called without OrgID or getToken.");
+        setError("Cannot load contracts: Missing organization or authentication.");
+        setIsLoadingContracts(false);
+        return;
     }
-    
-    if (!getToken) {
-      console.error('[Contracts] getToken function not available from auth context.');
-      setError('Authentication provider not ready.');
-      setIsLoadingContracts(false);
-      return;
-    }
-    
-    if (!organizationId) {
-      console.warn('[Contracts] Organization ID not available in auth context. Cannot fetch contracts.');
-      setContracts([]);
-      setIsLoadingContracts(false);
-      if (!isAuthLoading) {
-        setError('Your user profile is missing organization details. Please contact support.');
-      } else {
-         setError('Organization details not loaded yet.');
-      }
-      return;
-    }
-    
-    console.log(`[Contracts] Fetching contracts for Org ID: ${organizationId}`);
-
+    console.log("[Contracts] loadContracts called");
     setIsLoadingContracts(true);
     setError(null);
     try {
@@ -372,16 +350,23 @@ const Contracts = () => {
       setIsLoadingContracts(false);
       console.log('[Contracts] loadContracts finished');
     }
-  };
+  }, [organizationId, getToken]);
 
   useEffect(() => {
-    console.log('[Contracts] useEffect running, checking conditions...');
-    if (!isAuthLoading && getToken && organizationId) {
+    console.log(`[Contracts] useEffect triggered. AuthLoading: ${isAuthLoading}, OrgID: ${organizationId}`);
+
+    if (!isAuthLoading && organizationId) {
+      console.log("[Contracts] Auth loaded and OrgID present. Calling loadContracts.");
       loadContracts();
-    } else if (!isAuthLoading && getToken && !organizationId) {
-        console.warn('[Contracts] useEffect: Auth loaded but Org ID missing.');
+    } else if (!isAuthLoading && !organizationId) {
+      console.error("[Contracts] Auth loaded, but Organization ID is missing from context. Cannot load contracts.");
+      setError("Organization details are missing. Cannot load contracts.");
+      setIsLoadingContracts(false);
+    } else {
+      console.log("[Contracts] Waiting for auth context to load...");
+      setIsLoadingContracts(true);
     }
-  }, [isAuthLoading, getToken, organizationId]);
+  }, [isAuthLoading, organizationId, loadContracts]);
 
   // Debounce search updates
   useEffect(() => {
@@ -449,21 +434,13 @@ const Contracts = () => {
     );
   }
 
-  if (authError) {
+  if (error) {
      return (
        <div className="flex h-screen items-center justify-center text-red-600">
-         <p>Error loading authentication: {authError.message}</p>
+         <p>{error}</p>
        </div>
      );
    }
-
-  if (!organizationId && !isAuthLoading) {
-      return (
-          <div className="flex h-screen items-center justify-center text-red-600">
-            <p>{error || 'Your user profile is missing organization details. Cannot load contracts.'}</p>
-          </div>
-      );
-  }
 
   return (
     <div className="flex h-screen">

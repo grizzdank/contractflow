@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import Navigation from "@/components/Navigation";
@@ -19,6 +19,7 @@ import { toast } from "@/components/ui/use-toast";
 import { SupabaseClient, PostgrestError } from '@supabase/supabase-js';
 import { formatISO } from 'date-fns'; // For timestamp
 import { Loader2, ArrowLeft } from "lucide-react"; // Import Loader and ArrowLeft icon
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Type aliases for cleaner code
 type ContractsTable = Database['public']['Tables']['contracts'];
@@ -147,7 +148,7 @@ const mapTypeToDb = (frontendType: Contract['type']): ContractTypeDb | undefined
 };
 
 // Function to map frontend Contract state back to DB Update format
-const mapContractToDbUpdate = (contract: Contract): ContractUpdate => {
+const mapContractToDbUpdate = (contract: Contract, organizationId: string): ContractUpdate => {
   const mappedStatus = mapStatusToDb(contract.status);
   const mappedType = mapTypeToDb(contract.type);
 
@@ -167,6 +168,7 @@ const mapContractToDbUpdate = (contract: Contract): ContractUpdate => {
     vendor_address: contract.vendorAddress,
     signatory_name: contract.signatoryName,
     signatory_email: contract.signatoryEmail,
+    organization_id: organizationId,
   };
 };
 
@@ -191,56 +193,17 @@ const ContractDetails = () => {
   const [isLoadingContract, setIsLoadingContract] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const { user, isLoading: isAuthLoading, getToken, error: authError } = useClerkAuth();
-  const organizationId = user?.organizationId;
-  const supabaseUserId = user?.supabaseUserId;
-  const clerkUserId = user?.clerkUserId;
-  const userEmail = user?.primaryEmail;
-  const userName = user?.fullName || userEmail || 'Unknown User';
+  const {
+    getToken,
+    userDetails,
+    isLoading: isAuthLoading,
+    contractServiceInstance
+  } = useClerkAuth();
+  const { organizationId, supabaseUserId, email: userEmail } = userDetails;
 
   const contractId = contract?.id;
 
-  useEffect(() => {
-    // Log values *before* the check
-    console.log("[ContractDetails] useEffect SCOPE: contractNumber:", contractNumber, "organizationId:", organizationId, "isAuthLoading:", isAuthLoading, "has getToken:", !!getToken);
-
-    console.log("[ContractDetails] useEffect triggered. contractNumber:", contractNumber, "organizationId:", organizationId, "isAuthLoading:", isAuthLoading); // Keep original log too
-    if (!isAuthLoading && contractNumber && getToken && organizationId) {
-      // Log values *inside* the condition before calling loadContract
-      console.log(`[ContractDetails] useEffect CONDITION MET: Loading with contractNumber='${contractNumber}', organizationId='${organizationId}'`);
-
-      console.log("[ContractDetails] Auth loaded, dependencies met. Loading contract..."); // Keep original log
-      loadContract().then(loadedContract => {
-        if (loadedContract?.id) {
-            console.log("[ContractDetails] Contract loaded, now loading COI files for contract ID:", loadedContract.id);
-            loadCOIFiles(loadedContract.id);
-        } else {
-            console.warn("[ContractDetails] Contract loaded but ID is missing, cannot load COI files.");
-            if (!error && !isLoadingContract) {
-              setError("Contract data loaded successfully, but could not retrieve COI files due to missing ID.")
-            }
-        }
-      }).catch(err => {
-         console.error("[ContractDetails] Error during loadContract promise chain:", err);
-         setError(err.message || "An unexpected error occurred loading contract data.");
-         setIsLoadingContract(false);
-      });
-    } else if (!isAuthLoading && contractNumber && (!getToken || !organizationId)) {
-       console.warn("[ContractDetails] Auth loaded, but missing getToken or Organization ID. Cannot load contract.");
-      setIsLoadingContract(false);
-      setError("Authentication details loaded, but organization information is missing. Cannot display contract.");
-    } else if (isAuthLoading) {
-       console.log("[ContractDetails] Waiting for auth context to load...");
-      setIsLoadingContract(true);
-      setError(null);
-    } else if (!contractNumber) {
-       console.error("[ContractDetails] Missing contractNumber parameter.");
-       setIsLoadingContract(false);
-       setError("No contract number specified in the URL.");
-    }
-  }, [isAuthLoading, contractNumber, getToken, organizationId]);
-
-  const loadContract = async (): Promise<Contract | null> => {
+  const loadContract = useCallback(async (): Promise<Contract | null> => {
     if (!contractNumber || !getToken || !organizationId) {
       console.error("[ContractDetails] loadContract called without required dependencies.");
       setError("Failed to load: Missing contract number or authentication details.");
@@ -255,7 +218,6 @@ const ContractDetails = () => {
       const authenticatedSupabase = await createAuthenticatedSupabaseClient(getToken);
       console.log("[ContractDetails] Authenticated client created.");
 
-      // Log the exact values being used for filtering
       console.log(`[ContractDetails] Querying Supabase with: contractNumber='${contractNumber}', organizationId='${organizationId}'`);
 
       const { data, error: fetchError } = await authenticatedSupabase
@@ -293,31 +255,40 @@ const ContractDetails = () => {
       setIsLoadingContract(false);
       return null;
     }
-  };
+  }, [contractNumber, getToken, organizationId]);
+
+  useEffect(() => {
+    console.log(`[ContractDetails] useEffect triggered. AuthLoading: ${isAuthLoading}, OrgID: ${organizationId}, ContractNumber: ${contractNumber}`);
+
+    if (!isAuthLoading && contractNumber && organizationId && getToken) {
+      console.log("[ContractDetails] Dependencies met, calling loadContract...");
+      loadContract();
+    } else {
+       console.log("[ContractDetails] Dependencies not met, waiting...");
+       if (isAuthLoading) {
+           setIsLoadingContract(true); 
+       }
+    }
+  }, [isAuthLoading, contractNumber, organizationId, getToken, loadContract]);
 
   const handleSave = async () => {
-    if (!contract || !getToken || !organizationId || !supabaseUserId || !userEmail) {
+    if (!contract || !getToken || !organizationId || !supabaseUserId || !userEmail || !contractServiceInstance) {
       toast({
         title: "Error",
-        description: "Cannot save. Missing contract data, user details, or authentication.",
+        description: "Cannot save. Missing contract data, user details, or service not ready.",
         variant: "destructive",
       });
-      console.error("Save failed: Missing data", { contract, getToken: !!getToken, organizationId, supabaseUserId, userEmail });
+      console.error("Save failed: Missing data/service", { contract, getToken: !!getToken, organizationId, supabaseUserId, userEmail, serviceReady: !!contractServiceInstance });
       return;
     }
 
     console.log("[ContractDetails] handleSave called. Contract state:", contract);
     setIsLoadingContract(true);
     try {
-      const authenticatedSupabase = await createAuthenticatedSupabaseClient(getToken);
-      const dbUpdateData = mapContractToDbUpdate(contract);
+      const dbUpdateData = mapContractToDbUpdate(contract, organizationId);
       console.log("[ContractDetails] Mapped data for DB update:", dbUpdateData);
 
-      const { data: originalData, error: originalError } = await authenticatedSupabase
-          .from('contracts')
-          .select('*')
-          .eq('id', contract.id)
-          .single();
+      const { data: originalData, error: originalError } = await contractServiceInstance.getContract(contract.id);
 
       if(originalError || !originalData) {
           console.error("Failed to fetch original contract data for audit:", originalError);
@@ -330,32 +301,46 @@ const ContractDetails = () => {
 
       let changes: Record<string, { old: any; new: any }> = {};
       if (originalData) {
-         const originalContractMapped = mapDbToContract(originalData as ContractRow);
-          Object.keys(dbUpdateData).forEach(key => {
-            const dbKey = key as keyof ContractUpdate;
-            const contractKey = key as keyof Contract;
-            if (dbUpdateData[dbKey] !== (originalContractMapped as any)[contractKey]) {
-               changes[dbKey] = {
-                   old: (originalContractMapped as any)[contractKey],
-                   new: dbUpdateData[dbKey]
-               };
-            }
-         });
-         console.log("[ContractDetails] Detected changes for audit:", changes);
+          for (const key in contract) {
+              if (Object.prototype.hasOwnProperty.call(contract, key)) {
+                  const typedKey = key as keyof Contract;
+                  if (contract[typedKey] !== originalData[typedKey]) {
+                      let oldDbValue: any = originalData[typedKey];
+                      let newDbValue: any = contract[typedKey];
+                      let dbFieldName: string = key;
+
+                      if (typedKey === 'status') {
+                          oldDbValue = mapStatusToDb(originalData.status);
+                          newDbValue = mapStatusToDb(contract.status);
+                          dbFieldName = 'status';
+                      } else if (typedKey === 'type') {
+                          oldDbValue = mapTypeToDb(originalData.type);
+                          newDbValue = mapTypeToDb(contract.type);
+                          dbFieldName = 'type';
+                      } else if (typedKey === 'startDate') {
+                          oldDbValue = originalData.startDate;
+                          newDbValue = contract.startDate;
+                          dbFieldName = 'start_date';
+                      } else if (typedKey === 'endDate') {
+                          oldDbValue = originalData.endDate;
+                          newDbValue = contract.endDate;
+                          dbFieldName = 'end_date';
+                      }
+                      
+                      changes[dbFieldName] = { old: oldDbValue, new: newDbValue };
+                  }
+              }
+          }
+          console.log("[ContractDetails] Detected changes for audit (DB format):", changes);
       }
 
-      const { data: updateData, error: updateError } = await authenticatedSupabase
-        .from('contracts')
-        .update(dbUpdateData)
-        .eq('id', contract.id)
-        .select()
-        .single();
+      const { data: updateData, error: updateError } = await contractServiceInstance.updateContract(contract.id, dbUpdateData);
 
       if (updateError) {
          console.error("[ContractDetails] Error updating contract:", updateError);
          throw updateError;
       }
-      console.log("[ContractDetails] Contract update successful:", updateData);
+      console.log("[ContractDetails] Contract update successful via service:", updateData);
 
        if (Object.keys(changes).length > 0) {
           try {
@@ -367,20 +352,22 @@ const ContractDetails = () => {
                   performed_by_email: userEmail,
                   organization_id: organizationId
               };
-              const { error: auditError } = await authenticatedSupabase
-                  .from('contract_audit_trail')
-                  .insert(auditPayload);
+              const { error: auditError } = await contractServiceInstance.addAuditTrailEntry(auditPayload);
               if (auditError) {
-                  console.warn("[ContractDetails] Failed to insert audit trail:", auditError);
+                  console.error("[ContractDetails] Failed to add audit trail entry via service:", auditError);
                   toast({
-                     title: "Save Successful (Warning)",
-                     description: "Contract saved, but failed to record changes in audit log.",
+                     title: "Warning",
+                     description: "Contract saved, but failed to log audit trail entry.",
                   });
               } else {
-                  console.log("[ContractDetails] Audit trail entry added successfully.");
+                  console.log("[ContractDetails] Audit trail entry added successfully via service.");
               }
-          } catch (auditException) {
-              console.error("[ContractDetails] Exception inserting audit trail:", auditException);
+          } catch (auditCatchError) {
+               console.error("[ContractDetails] Caught error adding audit trail entry via service:", auditCatchError);
+               toast({
+                  title: "Warning",
+                  description: "Contract saved, but an error occurred logging the audit trail entry.",
+               });
           }
       } else {
           console.log("[ContractDetails] No changes detected, skipping audit trail.");
@@ -405,94 +392,34 @@ const ContractDetails = () => {
     }
   };
 
-  const addComment = async () => {
-    if (!newComment.trim() || !contractId || !supabaseUserId || !userEmail || !getToken || !organizationId) {
-      toast({ title: "Error", description: "Cannot add empty comment or missing context.", variant: "destructive" });
-      return;
+  const addComment = async (commentText: string) => {
+    if (!contract || !supabaseUserId || !organizationId || !userEmail || !contractServiceInstance) {
+        toast({ title: "Error", description: "Cannot add comment. Missing details or service not ready.", variant: "destructive" });
+        return;
     }
-
-    const commentToAdd: Comment = {
-      id: crypto.randomUUID(),
-      content: newComment.trim(),
-      userId: supabaseUserId,
-      userName: userName,
-      timestamp: formatISO(new Date()),
-    };
-
-    const optimisticComments = [...(contract?.comments || []), commentToAdd];
-    setContract(prev => prev ? { ...prev, comments: optimisticComments } : null);
-    setNewComment("");
-
+    if (!commentText.trim()) {
+        toast({ title: "Error", description: "Comment cannot be empty.", variant: "destructive" });
+        return;
+    }
     try {
-      const authenticatedSupabase = await createAuthenticatedSupabaseClient(getToken);
-      
-      const { data: currentContractData, error: fetchError } = await authenticatedSupabase
-            .from('contracts')
-            .select('comments')
-            .eq('id', contractId)
-            .single();
-
-        if(fetchError || !currentContractData) {
-            console.error("Failed to fetch current comments before update:", fetchError);
-            throw new Error("Could not verify current comments before adding new one.");
+        const { error } = await contractServiceInstance.addComment(contract.id, commentText.trim());
+        if (error) {
+           console.error("Failed to add comment via service:", error);
+           toast({ title: "Error", description: `Failed to add comment: ${error.message}`, variant: "destructive" });
+        } else {
+            console.log("Comment added successfully via service.");
+            toast({ title: "Success", description: "Comment added." });
+            setNewComment(""); // Clear input after successful submission
+            // TODO: Trigger comment list refresh (might need separate state or refetch)
         }
-
-        // Safely parse current comments from Json | null
-        let currentDbComments: Comment[] = [];
-        if (Array.isArray(currentContractData.comments)) {
-             // Filter first, then cast the result
-             const potentiallyValidComments = currentContractData.comments.filter(
-                 (c: any): c is Comment => 
-                    c && typeof c.id === 'string' && typeof c.content === 'string' && 
-                    typeof c.userId === 'string' && typeof c.userName === 'string' &&
-                    typeof c.timestamp === 'string'
-            );
-            // Cast the filtered array
-            currentDbComments = potentiallyValidComments as unknown as Comment[];
-            console.log("[ContractDetails] Parsed current DB comments:", currentDbComments);
-        } else if (currentContractData.comments != null) {
-             console.warn("[ContractDetails] DB comments field was not an array:", currentContractData.comments);
-        }
-        
-        const updatedDbComments = [...currentDbComments, commentToAdd];
-
-      // Update the contract's comments array in the DB
-      // Cast the Comment[] to unknown then to our locally defined Json type
-      const { error: updateError } = await authenticatedSupabase
-        .from('contracts')
-        .update({ comments: updatedDbComments as unknown as Json })
-        .eq('id', contractId);
-
-      if (updateError) {
-        console.error("[ContractDetails] Error updating comments in DB:", updateError);
-        throw updateError;
-      }
-      console.log("[ContractDetails] Comment added to DB successfully.");
-
-       try {
-           const auditPayload: AuditTrailInsert = {
-               contract_id: contractId,
-               action_type: 'comment_added',
-               changes: { comment: commentToAdd.content },
-               performed_by: supabaseUserId,
-               performed_by_email: userEmail,
-               organization_id: organizationId
-           };
-           const { error: auditError } = await authenticatedSupabase
-               .from('contract_audit_trail')
-               .insert(auditPayload);
-           if (auditError) {
-               console.warn("[ContractDetails] Failed to insert comment audit trail:", auditError);
-           }
-       } catch (auditException) {
-           console.error("[ContractDetails] Exception inserting comment audit trail:", auditException);
-       }
-
-    } catch (err: any) {
-      console.error("[ContractDetails] Error adding comment:", err);
-      toast({ title: "Error Adding Comment", description: err.message, variant: "destructive" });
-      setContract(prev => prev ? { ...prev, comments: contract?.comments || [] } : null);
+    } catch(err) {
+        console.error("Caught error adding comment via service:", err);
+        toast({ title: "Error", description: "An unexpected error occurred adding the comment.", variant: "destructive" });
     }
+  };
+
+  const handleAddCommentClick = () => {
+      addComment(newComment); // Call the actual addComment with the current state value
   };
 
   const loadCOIFiles = async (currentContractId: string) => {
@@ -521,8 +448,8 @@ const ContractDetails = () => {
   };
 
   const handleCOIUploadSuccess = async (fileName: string, filePath: string) => {
-      console.log("[ContractDetails] handleCOIUploadSuccess called.");
-      toast({ title: "COI Uploaded", description: `${fileName} uploaded successfully.` });
+    console.log("[ContractDetails] handleCOIUploadSuccess called.");
+    toast({ title: "COI Uploaded", description: `${fileName} uploaded successfully.` });
 
       if (contractId && supabaseUserId && userEmail && getToken && organizationId) {
           try {
@@ -535,9 +462,7 @@ const ContractDetails = () => {
                    performed_by_email: userEmail,
                    organization_id: organizationId
                };
-               const { error: auditError } = await authenticatedSupabase
-                   .from('contract_audit_trail')
-                   .insert(auditPayload);
+               const { error: auditError } = await contractServiceInstance.addAuditTrailEntry(auditPayload);
                if (auditError) {
                    console.warn("[ContractDetails] Failed to insert COI upload audit trail:", auditError);
                }
@@ -576,7 +501,7 @@ const ContractDetails = () => {
         console.error("[ContractDetails] Error deleting COI DB record:", dbError);
         throw dbError;
       }
-       console.log("[ContractDetails] COI DB record deleted successfully.");
+      console.log("[ContractDetails] COI DB record deleted successfully.");
 
       const { error: storageError } = await authenticatedSupabase.storage
         .from('coi-documents')
@@ -586,8 +511,8 @@ const ContractDetails = () => {
         console.warn("[ContractDetails] Error deleting COI from storage (DB record deleted):", storageError);
         toast({ title: "Warning", description: "File deleted from records, but failed to remove from storage." });
       } else {
-          console.log("[ContractDetails] COI file deleted from storage successfully.");
-          toast({ title: "Success", description: "COI document deleted successfully." });
+        console.log("[ContractDetails] COI file deleted from storage successfully.");
+        toast({ title: "Success", description: "COI document deleted successfully." });
       }
 
        try {
@@ -599,9 +524,7 @@ const ContractDetails = () => {
                performed_by_email: userEmail,
                organization_id: organizationId
            };
-           const { error: auditError } = await authenticatedSupabase
-               .from('contract_audit_trail')
-               .insert(auditPayload);
+           const { error: auditError } = await contractServiceInstance.addAuditTrailEntry(auditPayload);
            if (auditError) {
                console.warn("[ContractDetails] Failed to insert COI delete audit trail:", auditError);
            }
@@ -612,7 +535,7 @@ const ContractDetails = () => {
     } catch (err: any) {
       console.error("[ContractDetails] Error deleting COI file:", err);
       toast({ title: "Error Deleting COI", description: err.message, variant: "destructive" });
-      setCoiFiles(originalFiles);
+      setCoiFiles(originalFiles); // Revert optimistic update
     }
   };
 
@@ -628,34 +551,6 @@ const ContractDetails = () => {
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <p className="ml-2">Loading authentication...</p>
       </div>
-    );
-  }
-
-  if (authError) {
-     return (
-       <div className="flex h-screen items-center justify-center text-red-600">
-         <p>Authentication Error: {authError.message}</p>
-       </div>
-     );
-  }
-
-  if (!organizationId && !isAuthLoading) {
-      return (
-         <div className="flex h-screen items-center justify-center text-red-600">
-           <p>{error || 'Organization details missing. Cannot load contract.'}</p>
-         </div>
-      );
-  }
-
-  if (isLoadingContract) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Navigation />
-         <div className="flex-1 flex items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="ml-2">Loading contract details...</p>
-          </div>
-        </div>
     );
   }
 
@@ -686,6 +581,15 @@ const ContractDetails = () => {
                 </Button>
             </main>
         </div>
+    );
+  }
+
+  if (isLoadingContract) {
+     return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="ml-2">Loading contract details...</p>
+      </div>
     );
   }
 
@@ -744,11 +648,11 @@ const ContractDetails = () => {
 
         <Card className="p-4 bg-white shadow-sm">
               <ContractComments
-                comments={contract.comments}
+                comments={contract.comments || []}
                 newComment={newComment}
                 onNewCommentChange={setNewComment}
-                onAddComment={addComment}
-            currentUserId={supabaseUserId}
+                onAddComment={handleAddCommentClick}
+                currentUserId={supabaseUserId}
               />
         </Card>
 

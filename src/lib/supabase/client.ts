@@ -45,56 +45,119 @@ export const supabase = createClient<Database>(supabaseUrl!, supabaseAnonKey!, {
 console.log('Base Supabase client initialized (unauthenticated).');
 
 
-// --- Helper function to create an AUTHENTICATED client ---
-// This function requires the Clerk getToken function to be passed in.
-// It should be called within a component or context where useAuth() is available.
-// Note: This creates a NEW client instance each time. Consider memoization or context if performance is critical.
-export const createAuthenticatedSupabaseClient = async (
-  // CORRECTED Signature: Accept getToken function directly
-  getToken: (options?: { template?: string }) => Promise<string | null>
-): Promise<SupabaseClient<Database>> => {
-  console.log("[createAuthenticatedSupabaseClient] Attempting to create client...");
-
-  // CORRECTED Check: Validate the passed getToken function
-  if (typeof getToken !== 'function') {
-    console.error("[createAuthenticatedSupabaseClient] Invalid getToken function provided.");
-    throw new Error("A valid getToken function is required.");
-  }
-
+// Utility to decode JWT payload (basic base64 decoding)
+function decodeJwtPayload(token: string): any | null {
   try {
-    // CORRECTED Call: Use the passed getToken function WITHOUT the template
-    console.log("[createAuthenticatedSupabaseClient] Fetching Clerk JWT...");
-    const token = await getToken(); // NO TEMPLATE OPTION
-    console.log("[createAuthenticatedSupabaseClient] Clerk JWT fetched (first few chars):", token?.substring(0, 10));
+    const base64Url = token.split('.')[1];
+    if (!base64Url) return null;
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+  } catch (error) {
+    console.error("Error decoding JWT payload:", error);
+    return null;
+  }
+}
 
-    if (!token) {
-      console.error("[createAuthenticatedSupabaseClient] Failed to retrieve Clerk JWT.");
-      throw new Error('Failed to retrieve Clerk JWT.');
+// Define the type for the getToken function more specifically if possible
+// This matches the type from Clerk's useAuth hook
+type GetToken = (options?: { template?: string; skipCache?: boolean; }) => Promise<string | null>;
+
+// Singleton instance for the base client (unauthenticated)
+let supabaseBaseClient: SupabaseClient<Database> | null = null;
+
+/**
+ * Gets the singleton instance of the unauthenticated Supabase client.
+ */
+export const getSupabaseBaseClient = (): SupabaseClient<Database> => {
+  if (!supabaseBaseClient) {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    console.log("Supabase base client config - URL:", supabaseUrl);
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error("Supabase URL or Anon Key is missing in environment variables.");
     }
 
-    // Create a new Supabase client instance with the JWT
-    console.log("[createAuthenticatedSupabaseClient] Creating Supabase client with JWT...");
-    const authenticatedClient = createClient<Database>(supabaseUrl!, supabaseAnonKey!, {
-      global: {
-        headers: {
-          Authorization: `Bearer ${token}`, // Use the fetched token
+    supabaseBaseClient = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+        auth: {
+            // Recommended settings for SPA
+            autoRefreshToken: true,
+            persistSession: true, // Typically true for web apps
+            detectSessionInUrl: false, // Unless using OAuth redirects
         },
-      },
-       // Ensure Supabase doesn't interfere with Clerk's auth
-       auth: {
-         persistSession: false,
-         autoRefreshToken: false,
-         detectSessionInUrl: false,
-       }
+    });
+    console.log("Base Supabase client initialized (unauthenticated).");
+  }
+  return supabaseBaseClient;
+};
+
+// Store authenticated clients to potentially reuse or manage them
+// For now, just log creation
+// const authenticatedClients = new Map<string, SupabaseClient<Database>>();
+
+/**
+ * Creates an authenticated Supabase client using a Clerk JWT.
+ * IMPORTANT: Avoid calling this repeatedly if possible. Prefer passing the client instance.
+ */
+export const createAuthenticatedSupabaseClient = async (
+    getToken: GetToken
+): Promise<SupabaseClient<Database>> => {
+    console.log("[createAuthenticatedSupabaseClient] Attempting to create client...");
+    if (!getToken) {
+        throw new Error("getToken function is required to create an authenticated Supabase client.");
+    }
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    if (!supabaseUrl) {
+        throw new Error("Supabase URL is missing in environment variables.");
+    }
+
+    console.log("[createAuthenticatedSupabaseClient] Fetching Clerk JWT...");
+    const token = await getToken({ skipCache: false });
+    console.log(`[createAuthenticatedSupabaseClient] Clerk JWT fetched (first few chars): ${token?.substring(0, 8)}...`);
+
+    if (!token) {
+        throw new Error("Failed to get JWT from Clerk. User might not be authenticated.");
+    }
+
+    // ---- START JWT DECODING LOG ----
+    const decodedPayload = decodeJwtPayload(token);
+    if (decodedPayload) {
+        console.log("[createAuthenticatedSupabaseClient] Decoded JWT Payload:", decodedPayload);
+        console.log(`[createAuthenticatedSupabaseClient] JWT Org ID Claim (org_id): ${decodedPayload.org_id ?? 'Not Found'}`);
+        // Add checks for other relevant claims like 'sub' (Supabase User ID), 'exp' (expiration)
+        console.log(`[createAuthenticatedSupabaseClient] JWT Subject Claim (sub): ${decodedPayload.sub ?? 'Not Found'}`);
+        const expirationTime = decodedPayload.exp ? new Date(decodedPayload.exp * 1000) : 'N/A';
+        console.log(`[createAuthenticatedSupabaseClient] JWT Expiration: ${expirationTime}`);
+    } else {
+        console.warn("[createAuthenticatedSupabaseClient] Could not decode JWT payload.");
+    }
+    // ---- END JWT DECODING LOG ----
+
+    console.log("[createAuthenticatedSupabaseClient] Creating Supabase client with JWT...");
+    // Pass the anon key, even with global auth headers, as the client library seems to require it.
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    if (!supabaseAnonKey) {
+      // This should ideally have been caught earlier, but double-check.
+      throw new Error("Supabase Anon Key is missing in environment variables for authenticated client creation.");
+    }
+    const authenticatedClient = createClient<Database>(supabaseUrl, supabaseAnonKey, { 
+        global: {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        },
+        auth: {
+            autoRefreshToken: false, // Refresh is handled by Clerk
+            persistSession: false, // Session is managed by Clerk
+            detectSessionInUrl: false,
+        },
     });
     console.log("[createAuthenticatedSupabaseClient] Authenticated Supabase client created successfully.");
     return authenticatedClient;
-
-  } catch (error) {
-    console.error('[createAuthenticatedSupabaseClient] Error retrieving Clerk token or creating client:', error);
-    // Re-throw the error to be handled by the caller
-    throw new Error(`Failed to create authenticated Supabase client: ${error instanceof Error ? error.message : String(error)}`);
-  }
 };
 
 // Remove the old try/catch block and the potentially problematic mock client

@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
-import { useAuth, useUser } from "@clerk/clerk-react";
+import React, { useState, useEffect, useRef } from "react";
+import { useUser } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Upload, Download, FileText, Loader2 } from "lucide-react";
-import { ContractService } from "@/services/ContractService";
 import { toast } from "sonner";
 import { useClerkAuth } from "@/contexts/ClerkAuthContext";
 
@@ -23,11 +22,9 @@ interface ContractExecutedDocumentProps {
 }
 
 export function ContractExecutedDocument({ contractId, onDocumentUploaded }: ContractExecutedDocumentProps) {
-  const { getToken } = useAuth();
   const { user: clerkUser } = useUser();
-  const { user, isLoading: isAuthLoading, error: authError } = useClerkAuth();
-  const organizationId = user?.organizationId;
-  const supabaseUserId = user?.supabaseUserId;
+  const { userDetails, contractServiceInstance, isLoading: isAuthLoading, error: authError } = useClerkAuth();
+  const supabaseUserId = userDetails?.supabaseUserId;
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [executedDocument, setExecutedDocument] = useState<ExecutedDocument | null>(null);
@@ -35,17 +32,11 @@ export function ContractExecutedDocument({ contractId, onDocumentUploaded }: Con
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const contractService = useMemo(() => {
-    if (!organizationId || !getToken) {
-        console.warn("[CED] Org ID or getToken not available for ContractService initialization.");
-        return null;
-    }
-    return new ContractService(getToken, organizationId);
-  }, [getToken, organizationId]);
+  const contractService = contractServiceInstance;
 
   const loadExecutedDocument = async () => {
     if (!contractId || !contractService) {
-        if (!contractService) console.warn("[CED] Contract service not ready for loading doc.");
+        if (!contractService) console.warn("[CED] Contract service instance not available from context yet.");
         return;
     }
     setIsLoading(true);
@@ -72,6 +63,10 @@ export function ContractExecutedDocument({ contractId, onDocumentUploaded }: Con
   useEffect(() => {
     if (!isAuthLoading && contractService) {
         loadExecutedDocument();
+    } else if (!isAuthLoading && !contractService) {
+        console.warn("[CED] Auth loaded but contract service instance is still null.");
+        setError("Contract service could not be initialized.");
+        setIsLoading(false);
     }
   }, [contractId, contractService, isAuthLoading]);
 
@@ -88,7 +83,7 @@ export function ContractExecutedDocument({ contractId, onDocumentUploaded }: Con
   const handleUploadClick = async () => {
     if (!selectedFile || !contractService) {
       toast.error("Please select a file first.");
-      if (!contractService) toast.error("Service not ready.");
+      if (!contractService) toast.error("Service not available from context.");
       return;
     }
     if (!supabaseUserId) {
@@ -131,7 +126,7 @@ export function ContractExecutedDocument({ contractId, onDocumentUploaded }: Con
 
   const handleDownload = async () => {
     if (!executedDocument?.file_path || !contractService) {
-         if (!contractService) toast.error("Service not ready.");
+         if (!contractService) toast.error("Service not available from context.");
         return;
     }
 
@@ -168,7 +163,7 @@ export function ContractExecutedDocument({ contractId, onDocumentUploaded }: Con
   }
 
   if (!contractService && !isAuthLoading) {
-      return <div className="text-red-500">Could not initialize contract service. Organization details might be missing.</div>;
+      return <div className="text-red-500">Could not initialize contract service. Check auth context logs.</div>;
   }
 
   if (isLoading) {

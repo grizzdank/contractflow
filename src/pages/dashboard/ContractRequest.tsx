@@ -18,7 +18,6 @@ import { useClerkAuth } from "@/contexts/ClerkAuthContext";
 import { createAuthenticatedSupabaseClient } from "@/lib/supabase/client";
 import { Upload } from "lucide-react";
 import { Database } from "@/lib/supabase/types";
-import { ContractService } from "@/services/ContractService";
 
 // Define the enum types based on Database definition
 type ContractStatusEnum = Database["public"]["Enums"]["contract_status"];
@@ -32,10 +31,10 @@ type DbContractInsert = Database['public']['Tables']['contracts']['Insert'];
 const ContractRequest = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, isLoading: isAuthLoading, getToken, error: authError } = useClerkAuth();
-  const organizationId = user?.organizationId;
-  const userEmail = user?.primaryEmail;
-  const supabaseUserId = user?.supabaseUserId;
+  const { userDetails, isLoading: isAuthLoading, getToken, error: authError, contractServiceInstance } = useClerkAuth();
+  const organizationId = userDetails?.organizationId;
+  const userEmail = userDetails?.email;
+  const supabaseUserId = userDetails?.supabaseUserId;
 
   const [formData, setFormData] = useState({
     requestTitle: "",
@@ -99,10 +98,10 @@ const ContractRequest = () => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    if (!getToken || !organizationId || !userEmail || !supabaseUserId) {
+    if (!getToken || !organizationId || !userEmail || !supabaseUserId || !contractServiceInstance) {
         toast({
-          title: "Authentication Error",
-          description: "User authentication or organization details are missing. Please try logging in again.",
+          title: "Error",
+          description: "Cannot submit request. User, organization details, or service not ready. Please try again.",
           variant: "destructive",
         });
         setIsSubmitting(false);
@@ -110,8 +109,6 @@ const ContractRequest = () => {
     }
     
     try {
-      const contractService = new ContractService(getToken, organizationId);
-
       const mapFrontendTypeToDb = (frontendType: FrontendContractType): ContractTypeEnum => {
         switch (frontendType) {
           case 'services': return 'service';
@@ -150,7 +147,7 @@ const ContractRequest = () => {
 
       console.log('Payload being sent to ContractService.createContract:', newContractPayload);
 
-      const { data: createdContract, error: createError } = await contractService.createContract(
+      const { data: createdContract, error: createError } = await contractServiceInstance.createContract(
           newContractPayload, 
           supabaseUserId, 
           userEmail
@@ -169,7 +166,7 @@ const ContractRequest = () => {
           console.log(`Uploading ${formData.sowFiles.length} SOW files for contract ${newContractId}...`);
           let uploadErrors = 0;
           const uploadPromises = formData.sowFiles.map(file =>
-              contractService.uploadGeneralAttachment(
+              contractServiceInstance.uploadGeneralAttachment(
                   newContractId,
                   file,
                   supabaseUserId!, 
@@ -194,11 +191,19 @@ const ContractRequest = () => {
         duration: 5000,
       });
 
+      // Log the contract number and intended path before navigating
+      console.log(`[ContractRequest] Submission successful. Contract Number: ${newContractNumber}. Attempting navigation...`);
+
       if (newContractNumber) {
-          navigate(`/contracts/${newContractNumber}`);
+          const targetPath = `/dashboard/contracts/${newContractNumber}`;
+          console.log(`[ContractRequest] Navigating to new contract details: ${targetPath}`);
+          navigate(targetPath);
       } else {
-          console.warn("Created contract did not return a contract number. Navigating to list.");
-          navigate('/contracts');
+          console.warn("[ContractRequest] Created contract did not return a contract number. Navigating to list.");
+          // Corrected fallback path
+          const fallbackPath = '/dashboard/contracts';
+          console.log(`[ContractRequest] Navigating to contract list: ${fallbackPath}`);
+          navigate(fallbackPath); 
       }
 
     } catch (error) {
@@ -231,12 +236,12 @@ const ContractRequest = () => {
      );
   }
 
-  if (!organizationId) {
+  if (!organizationId || !contractServiceInstance) {
       return (
          <div className="flex h-screen items-center justify-center text-red-600">
            <Navigation />
            <div className="flex-1 flex items-center justify-center">
-              <p>Organization details missing. Cannot create contract request.</p>
+              <p>Organization details or contract service missing. Cannot create contract request.</p>
            </div>
          </div>
       );

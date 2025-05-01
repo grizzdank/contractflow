@@ -87,12 +87,7 @@ const AppRoutes = () => {
         }
       />
       
-      {/* Catch-all routes based on auth state */}
-       <Route path="*" element={ 
-          <SignedIn>
-             <Navigate to="/dashboard" replace /> 
-          </SignedIn> }
-       />
+      {/* Keep the SignedOut catch-all to redirect non-logged-in users */}
        <Route path="*" element={ 
           <SignedOut>
             <Navigate to="/" replace />
