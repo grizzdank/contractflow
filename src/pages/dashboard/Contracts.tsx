@@ -177,16 +177,40 @@ export const columns: ColumnDef<Contract>[] = [
   },
   {
     accessorKey: "title",
-    header: "Title",
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Title
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
     cell: ({ row }) => <div className="truncate max-w-xs" title={row.getValue("title")}>{row.getValue("title")}</div>,
   },
   {
     accessorKey: "vendor",
-    header: "Vendor",
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Vendor
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
   },
   {
     accessorKey: "status",
-    header: "Status",
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Status
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
     cell: ({ row }) => {
       const status = row.getValue("status") as ContractStatus;
       return (
@@ -199,7 +223,31 @@ export const columns: ColumnDef<Contract>[] = [
   },
    {
     accessorKey: "department",
-    header: "Department",
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Department
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+  },
+  {
+    accessorKey: "startDate",
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Start Date
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => {
+      const date = row.getValue("startDate") as string;
+      return date ? new Date(date).toLocaleDateString() : "N/A";
+    },
   },
   {
     accessorKey: "endDate",
