@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+Disallow: /dashboard/
+Disallow: /auth/
+Disallow: /sign-in/
+Disallow: /sign-up/
+
+Sitemap: https://www.contractflo.ai/sitemap.xml 

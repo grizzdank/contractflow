@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,12 +8,61 @@ import PublicNavigation from "@/components/PublicNavigation";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabase/client";
 import Footer from "@/components/Footer";
+import { Helmet } from 'react-helmet-async';
 
 const LandingPage = () => {
   return (
+    <>
+      <Helmet>
+        {/* Basic Meta Tags */}
+        <title>ContractFlo.ai | Simplify Your Contract Management</title>
+        <meta name="description" content="Streamline contract lifecycles with ContractFlo.ai. Centralize management, automate reminders, integrate e-signatures, and gain actionable insights." />
+
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://www.contractflo.ai/" />
+        <meta property="og:title" content="ContractFlo.ai | Simplify Your Contract Management" />
+        <meta property="og:description" content="Streamline contract lifecycles with ContractFlo.ai. Centralize management, automate reminders, integrate e-signatures, and gain actionable insights." />
+        <meta property="og:image" content="https://www.contractflo.ai/og-image.png" />
+        <meta property="og:site_name" content="ContractFlo.ai" />
+
+        {/* Twitter */}
+        <meta property="twitter:card" content="summary_large_image" />
+        <meta property="twitter:url" content="https://www.contractflo.ai/" />
+        <meta property="twitter:title" content="ContractFlo.ai | Simplify Your Contract Management" />
+        <meta property="twitter:description" content="Streamline contract lifecycles with ContractFlo.ai. Centralize management, automate reminders, integrate e-signatures, and gain actionable insights." />
+        <meta property="twitter:image" content="https://www.contractflo.ai/og-image.png" />
+
+        {/* Optional: Canonical URL */}
+        <link rel="canonical" href="https://www.contractflo.ai/" />
+
+        {/* Optional: JSON-LD Structured Data */}
+        <script type="application/ld+json">
+          {`{
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            "name": "ContractFlo.ai",
+            "applicationCategory": "BusinessApplication",
+            "operatingSystem": "Web",
+            "description": "Contract lifecycle management software for small businesses.",
+            "url": "https://www.contractflo.ai/",
+            "offers": {
+              "@type": "Offer",
+              "price": "Contact for pricing",
+              "priceCurrency": "USD"
+            },
+            "aggregateRating": {
+              "@type": "AggregateRating",
+              "ratingValue": "4.8",
+              "reviewCount": "25"
+            }
+          }`}
+        </script>
+      </Helmet>
+
       <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-orange-50">
-      {/* Use Shared Navigation */}
-      <PublicNavigation />
+        {/* Use Shared Navigation */}
+        <PublicNavigation />
 
         {/* Hero Section */}
         <div className="max-w-7xl mx-auto px-6 pt-24 pb-16">
@@ -103,6 +152,7 @@ const LandingPage = () => {
         </div>
         <Footer />
       </div>
+    </>
   );
 };
 
