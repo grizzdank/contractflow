@@ -2,31 +2,31 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://www.contractflo.ai/</loc>
-    <lastmod>2024-07-31</lastmod> {/* Update this date as needed */}
+    <lastmod>2025-04-30</lastmod> {/* Update this date as needed */}
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>https://www.contractflo.ai/waitlist</loc>
-    <lastmod>2024-07-31</lastmod>
+    <lastmod>2025-04-30</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.contractflo.ai/contact</loc>
-    <lastmod>2024-07-31</lastmod>
+    <lastmod>2025-04-30</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://www.contractflo.ai/terms</loc>
-    <lastmod>2024-07-31</lastmod>
+    <lastmod>2025-04-30</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://www.contractflo.ai/privacy</loc>
-    <lastmod>2024-07-31</lastmod>
+    <lastmod>2025-04-30</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.5</priority>
   </url>
