@@ -1,244 +1,185 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Download, FileText, Loader2, Upload } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { useClerkAuth } from "@/contexts/ClerkAuthContext";
-import { createAuthenticatedSupabaseClient } from "@/lib/supabase/client";
-import { Database } from "@/lib/supabase/types";
+import { Download, FileText, Loader2, Upload, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { ContractService } from "@/services/ContractService";
-
-// Type for attachments fetched from DB - Pointing to contract_coi_files now
-type DbAttachmentFile = Database['public']['Tables']['contract_coi_files']['Row'];
-
-// Type for frontend display
-interface Attachment {
-  id: string;
-  name: string;
-  path: string; // Path in storage
-  url?: string; // Optional: pre-signed URL for download
-}
+import { IFileService } from "@/services/interfaces/IFileService";
+import { DisplayFile } from "@/domain/types/DisplayFile";
+import { useClerkAuth } from "@/contexts/ClerkAuthContext";
 
 interface ContractAttachmentsProps {
   contractId: string;
+  organizationId: string;
+  attachments: DisplayFile[];
+  onUploadSuccess: (fileName: string, filePath: string, documentType: string) => void;
+  onDelete: (fileId: string, filePath: string, contractId: string, organizationId: string) => void;
+  isLoading?: boolean;
+  fileService: IFileService;
 }
 
-// Helper to map DB data from contract_coi_files to frontend Attachment type
-const mapDbToFile = (dbFile: DbAttachmentFile): Attachment => ({
-  id: dbFile.id,
-  name: dbFile.file_name, // Assuming same column name
-  path: dbFile.file_path, // Assuming same column name
-});
-
-export function ContractAttachments({ contractId }: ContractAttachmentsProps) {
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+export function ContractAttachments({
+  contractId,
+  organizationId,
+  attachments,
+  onUploadSuccess,
+  onDelete,
+  isLoading,
+  fileService
+}: ContractAttachmentsProps) {
+  
   const [isUploading, setIsUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { user, getToken, isLoading: isAuthLoading } = useClerkAuth();
-
-  // Function to load attachments (can be reused for refresh)
-  const loadAttachments = async () => {
-    if (!contractId || !getToken || isAuthLoading) {
-      console.log("[Attachments] Waiting for contractId, token, or auth loading.");
-      if (!isAuthLoading) setIsLoading(false);
-      return;
-    }
-    
-    console.log(`[Attachments] Loading general attachments for contract ID: ${contractId}`);
-    setIsLoading(true);
-    setError(null);
-    try {
-      const supabase = await createAuthenticatedSupabaseClient(getToken);
-      const { data, error: fetchError } = await supabase
-        .from('contract_coi_files') 
-        .select('id, file_name, file_path, is_executed_contract')
-        .eq('contract_id', contractId)
-        .eq('is_executed_contract', false)
-        .order('uploaded_at', { ascending: true });
-
-      if (fetchError) throw fetchError;
-
-      const mappedFiles = data ? data.map(mapDbToFile) : [];
-      setAttachments(mappedFiles);
-      console.log(`[Attachments] Loaded ${mappedFiles.length} general attachments.`);
-      
-    } catch (err: any) {
-      console.error('[Attachments] Error loading general attachments:', err);
-      setError(err.message || "Failed to load attachments.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Effect to load attachments on mount or when dependencies change
-  useEffect(() => {
-    loadAttachments();
-  }, [contractId, getToken, isAuthLoading]);
+  const { appUserDetails } = useClerkAuth();
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      setError(null); // Clear previous upload errors on new selection
     } else {
       setSelectedFile(null);
     }
   };
 
   const handleUploadClick = async () => {
-    if (!selectedFile || !contractId || !getToken || !user?.supabaseUserId || !user?.primaryEmail || !user?.organizationId) {
-        toast.error("Cannot upload. Missing file, contract details, or user information.");
-        console.error("Upload check failed:", { selectedFile, contractId, getToken:!!getToken, user });
+    if (!selectedFile || !fileService || !organizationId || !contractId) {
+        toast.error("Cannot upload: Missing file, service, or context.");
         return;
+    }
+    if (!appUserDetails?.supabaseUserId) {
+      toast.error("Cannot upload: User ID not available.");
+      setIsUploading(false);
+      return;
     }
 
     setIsUploading(true);
-    setError(null); // Clear previous errors before new upload
     toast.info(`Uploading ${selectedFile.name}...`);
 
     try {
-        const contractService = new ContractService(getToken, user.organizationId);
-        const { data, error: uploadError } = await contractService.uploadGeneralAttachment(
+        const { data, error: uploadError } = await fileService.uploadGeneralAttachment(
             contractId,
             selectedFile,
-            user.supabaseUserId,
-            user.primaryEmail
-        );
+            organizationId,
+            appUserDetails.supabaseUserId
+        ); 
 
-        if (uploadError) {
-            throw uploadError;
+        if (uploadError) throw uploadError;
+
+        const filePath = data?.file_path;
+        if (!filePath) {
+          throw new Error("Upload succeeded but file path was not returned.");
         }
 
         toast.success(`Attachment ${selectedFile.name} uploaded successfully.`);
-        setSelectedFile(null); // Clear selection
+        setSelectedFile(null);
         if (fileInputRef.current) {
-          fileInputRef.current.value = ""; // Reset file input
+          fileInputRef.current.value = "";
         }
-        loadAttachments(); // Refresh the list
+        onUploadSuccess(selectedFile.name, filePath, 'general_attachment');
 
     } catch (err: any) {
         console.error('[Attachments] Upload error:', err);
-        const message = err.message || 'Unknown error';
-        toast.error(`Failed to upload attachment: ${message}`);
-        setError(`Upload failed: ${message}`); // Set error state to display
+        toast.error(`Failed to upload attachment: ${err.message || 'Unknown error'}`);
     } finally {
         setIsUploading(false);
     }
   };
 
-  // Function to handle download (requires storage access)
-  const handleDownload = async (attachment: Attachment) => {
-    if (!getToken || !user?.organizationId) { // Also check orgId for service instantiation
-      toast.error("Authentication context not available.");
-      return;
+  const handleDownload = async (attachment: DisplayFile) => {
+    if (!attachment?.file_path || !fileService) {
+        toast.error("Download failed: Missing file path or service.");
+        return;
     }
-    toast.info(`Preparing download for ${attachment.name}...`);
+    toast.info(`Preparing download for ${attachment.file_name}...`);
     try {
-        // Instantiate service to use its download method
-        const contractService = new ContractService(getToken, user.organizationId);
-        // Use the service's download function, specifying the correct bucket
-        const { data, error: downloadError } = await contractService.downloadFile(
-            attachment.path, 
-            'general-attachments' // <<< Specify correct bucket
-        );
+      const { data, error: downloadError } = await fileService.downloadFile(attachment.file_path);
 
-        if (downloadError) throw downloadError;
-        if (!data) throw new Error("No download data received.");
+      if (downloadError || !data) throw new Error(downloadError?.message || 'Failed to download file blob.');
 
-        const url = URL.createObjectURL(data);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = attachment.name;
-        document.body.appendChild(a);
-        a.click();
-        URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        toast.success("Download started.");
-
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = attachment.file_name;
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success("Download started.");
     } catch (err: any) {
-        console.error('[Attachments] Download error:', err);
-        toast.error(`Failed to download ${attachment.name}: ${err.message}`);
+      console.error('[Attachments] Download error:', err);
+      toast.error(`Download failed: ${err.message}`);
     }
+  };
+
+  const handleDeleteClick = (fileId: string, filePath: string) => {
+    if (!organizationId) {
+        toast.error("Cannot delete: Organization ID missing.");
+        return;
+    }
+    onDelete(fileId, filePath, contractId, organizationId);
   };
 
   return (
     <div>
       <h3 className="text-lg font-medium mb-4">Attachments</h3>
       
-      {/* --- Upload Section --- */}
       <div className="mb-4 p-4 border rounded-lg bg-gray-50 space-y-2">
-        {/* Hidden File Input */}
-        <Input 
-            id="attachment-upload" 
-            type="file" 
-            onChange={handleFileSelect} // Use handleFileSelect
-            className="hidden" // Keep hidden
-            ref={fileInputRef}
-            disabled={isUploading}
-        />
         <div className="flex items-center gap-2">
-            {/* Button to Trigger File Selection */} 
-            <Button 
-                onClick={() => fileInputRef.current?.click()} // Triggers hidden input
-                disabled={isUploading} 
-                size="sm"
-                variant="outline"
-                className="flex-shrink-0"
-            >
-                 <Upload className="h-4 w-4 mr-2" />
-                 Choose File
-            </Button>
-            {/* Display selected file name */} 
-            <span className="text-sm text-gray-600 truncate flex-grow">
-                {selectedFile ? selectedFile.name : 'No file chosen'}
-            </span>
-            {/* Action Button to Perform Upload */} 
-            <Button 
-                onClick={handleUploadClick} // Calls the upload logic
-                disabled={!selectedFile || isUploading}
-                size="sm"
-                className="flex-shrink-0"
-            >
-                 {isUploading ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                 ) : (
-                    <Upload className="h-4 w-4 mr-2" />
-                 )}
-                 {isUploading ? 'Uploading...' : 'Upload Attachment'}
-            </Button>
+          <Button 
+            onClick={() => {
+              console.log('[Attachments] Choose File button clicked. Triggering input ref click...');
+              fileInputRef.current?.click();
+            }}
+            disabled={isUploading} 
+            size="sm" 
+            variant="outline" 
+            className="flex-shrink-0"
+          >
+            <Upload className="h-4 w-4 mr-2" /> Choose File
+          </Button>
+          <Input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            onChange={handleFileSelect}
+            id={`attachment-file-input-${contractId}`}
+          />
+          <span className="text-sm text-gray-600 truncate flex-grow">
+            {selectedFile ? selectedFile.name : 'No file chosen'}
+          </span>
+          <Button onClick={handleUploadClick} disabled={!selectedFile || isUploading} size="sm">
+            {isUploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin"/> : <Upload className="h-4 w-4 mr-2" />}
+            {isUploading ? 'Uploading...' : 'Upload Attachment'}
+          </Button>
         </div>
-        {/* Display upload-specific error */} 
-        {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
       </div>
-      {/* --- End Upload Section --- */}
 
       <div className="space-y-2">
-        {isAuthLoading ? (
-           <p className="text-sm text-gray-500">Waiting for authentication...</p>
-        ) : isLoading ? (
-          <div className="flex items-center text-sm text-gray-500">
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            Loading attachments...
-          </div>
-        ) : error ? (
-           <p className="text-sm text-red-500">Error: {error}</p>
+        <h4 className="text-sm font-medium text-gray-600">Uploaded Attachments:</h4>
+        {isLoading ? (
+          <p className="text-sm text-gray-500">Loading attachments...</p>
         ) : attachments.length === 0 ? (
-          <p className="text-sm text-gray-500">No attachments found.</p>
+          <p className="text-sm text-gray-500">No attachments added yet.</p>
         ) : (
           attachments.map((attachment) => (
-            <div key={attachment.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
-              <div className="flex items-center gap-2 overflow-hidden mr-2">
-                <FileText className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                <span className="truncate" title={attachment.name}>{attachment.name}</span>
+            <div
+              key={attachment.id}
+              className="flex items-center justify-between p-3 bg-white border rounded-lg shadow-sm"
+            >
+              <div className="flex items-center gap-3 overflow-hidden mr-2">
+                <FileText className="h-5 w-5 text-gray-500 flex-shrink-0" />
+                <p className="font-medium truncate" title={attachment.file_name}>{attachment.file_name}</p>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => handleDownload(attachment)}>
-                <Download className="h-4 w-4 mr-2" />
-                Download
-              </Button>
+               <div className="flex items-center gap-2 flex-shrink-0">
+                    <Button variant="ghost" size="sm" onClick={() => handleDownload(attachment)}>
+                        <Download className="h-4 w-4 mr-2" /> Download
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(attachment.id, attachment.file_path)} className="text-red-500 hover:bg-red-100">
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Delete {attachment.file_name}</span>
+                    </Button>
+               </div>
             </div>
           ))
         )}

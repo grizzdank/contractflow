@@ -1,6 +1,9 @@
 import { IContractService } from "@/services/interfaces/IContractService";
 import { Contract } from "@/domain/types/Contract";
 import { ContractRepository } from "@/lib/repositories/ContractRepository";
+import { FileRepository } from "@/lib/repositories/FileRepository";
+import { FileService } from "./FileService";
+import { IFileService } from "./interfaces/IFileService";
 import { createAuthenticatedSupabaseClient } from "@/lib/supabase/client"; // Use authenticated client creator
 import { Database, Tables } from "@/lib/supabase/types"; // Use generated types
 import { SupabaseClient, User } from '@supabase/supabase-js'; // Import User type
@@ -11,6 +14,7 @@ type DbContractUpdate = Database['public']['Tables']['contracts']['Update'];
 type DbCoiFile = Tables<"contract_coi_files">;
 type DbCoiFileInsert = Database['public']['Tables']['contract_coi_files']['Insert'];
 type DbAuditTrailInsert = Database['public']['Tables']['contract_audit_trail']['Insert'];
+type DbFileRecord = Database['public']['Tables']['contract_coi_files']['Row'];
 
 type GetTokenFn = (options?: { template?: string; skipCache?: boolean; }) => Promise<string | null>;
 
@@ -59,6 +63,11 @@ const mapDbToContract = (data: DbContract): Contract => {
       return !!type && validTypes.includes(type as Contract['type']);
   };
 
+  const status = isValidStatus(data.status) ? data.status : "Draft";
+  const type = isValidType(data.type) ? data.type : "services";
+  
+  console.log(`[Service Map] Input data.contract_number: '${data.contract_number}', Output contractNumber: '${data.contract_number ?? ''}' for ID: ${data.id}`);
+
   return {
     id: data.id,
     contractNumber: data.contract_number ?? '',
@@ -68,8 +77,8 @@ const mapDbToContract = (data: DbContract): Contract => {
     amount: data.amount ?? 0,
     startDate: data.start_date ?? '',
     endDate: data.end_date ?? '',
-    status: isValidStatus(data.status) ? data.status : "Draft", // Use validated status
-    type: isValidType(data.type) ? data.type : "services", // Use validated type
+    status: status, // Use mapped/validated status
+    type: type,     // Use mapped/validated type
     department: data.department,
     accountingCodes: data.accounting_codes ?? undefined,
     vendorEmail: data.vendor_email ?? undefined,
@@ -134,10 +143,20 @@ export class ContractService implements IContractService {
   private organizationId: string | null = null;
   private userId: string | null = null;
   private userEmail: string | null = null;
+  private fileService: IFileService;
 
-  constructor(getToken: GetTokenFn, organizationId: string | null, userId: string | null, userEmail: string | null) {
+  constructor(
+      getToken: GetTokenFn, 
+      organizationId: string | null, 
+      userId: string | null, 
+      userEmail: string | null, 
+      fileService: IFileService
+    ) {
     if (!getToken) {
       throw new Error("ContractService requires a getToken function.");
+    }
+    if (!fileService) {
+      throw new Error("ContractService requires a FileService instance.");
     }
     if (!organizationId) {
        console.warn("ContractService initialized without an Organization ID.");
@@ -149,6 +168,7 @@ export class ContractService implements IContractService {
     this.organizationId = organizationId ?? null;
     this.userId = userId ?? null;
     this.userEmail = userEmail ?? null;
+    this.fileService = fileService;
     console.log(`ContractService initialized. Org ID: ${this.organizationId}, User ID: ${this.userId}`);
   }
 
@@ -162,7 +182,12 @@ export class ContractService implements IContractService {
         .eq('organization_id', this.organizationId);
 
       if (error) throw error;
+      console.log("[ContractService] Raw data from DB:", data); // Log raw data
+
       const mappedData = data ? data.map(mapDbToContract) : [];
+      
+      console.log("[ContractService] Mapped data being returned:", mappedData); // Log mapped data
+      
       return { data: mappedData, error: null };
     } catch (error) {
       console.error("Error fetching all contracts:", error);
@@ -298,309 +323,23 @@ export class ContractService implements IContractService {
       }
   }
 
-  async getContractCOIFiles(contractId: string): Promise<{ data: DbCoiFile[] | null; error: any }> {
-    try {
-      const supabase = await createAuthenticatedSupabaseClient(this.getToken);
-      const { data, error } = await supabase
-        .from('contract_coi_files')
-        .select('*')
-        .eq('contract_id', contractId)
-        .order('uploaded_at', { ascending: false });
-
-      if (error) {
-        console.error("Error fetching COI files:", error);
-        throw error;
-      }
-      return { data, error: null };
-    } catch (error) {
-      return { data: null, error };
-    }
+  async getAllContractFiles(contractId: string): Promise<{ data: DbFileRecord[] | null; error: any }> {
+    if (!this.organizationId) return { data: null, error: { message: "Organization ID missing" } };
+     try {
+       const supabase = await createAuthenticatedSupabaseClient(this.getToken);
+       return await FileRepository.getFilesByContractId(supabase, contractId);
+     } catch (error) {
+       console.error(`Error getting files for contract ${contractId}:`, error);
+       return { data: null, error };
+     }
   }
 
-  async uploadExecutedDocument(contractId: string, file: File, userId: string, userEmail: string): Promise<{ data: DbCoiFile | null; error: any }> {
-    if (userId !== this.userId || !this.organizationId) {
-        console.error(`[ContractService] Mismatch or missing context during uploadExecutedDocument. Provided User: ${userId}, Service User: ${this.userId}, Service Org: ${this.organizationId}`);
-        return { data: null, error: new Error("Service context mismatch or missing.") };
-    }
-    let deletedExisting = false;
-    let oldFilePath: string | null = null;
-
-    try {
-        const supabase = await createAuthenticatedSupabaseClient(this.getToken);
-        const { data: existingFiles, error: existingError } = await supabase
-            .from('contract_coi_files')
-            .select('id, file_path')
-            .eq('contract_id', contractId)
-            .eq('is_executed_contract', true)
-            .limit(1);
-        
-        if (existingError) {
-            console.warn("[ContractService] Failed to check for existing executed document:", existingError);
-        } else if (existingFiles && existingFiles.length > 0) {
-            const existingFile = existingFiles[0];
-            oldFilePath = existingFile.file_path;
-            console.log(`[ContractService] Found existing executed document (ID: ${existingFile.id}, Path: ${oldFilePath}). Deleting before upload.`);
-            
-            const { error: deleteDbError } = await supabase
-                .from('contract_coi_files')
-                .delete()
-                .eq('id', existingFile.id);
-            
-            if (deleteDbError) {
-                console.error("[ContractService] Failed to delete existing executed document DB record:", deleteDbError);
-                return { data: null, error: new Error("Failed to replace existing document record.") };
-            }
-
-            const { error: deleteStorageError } = await supabase.storage
-                .from('executed-documents')
-                .remove([oldFilePath]);
-            
-            if (deleteStorageError) {
-                console.warn(`[ContractService] Failed to delete existing executed document from storage (Path: ${oldFilePath}):`, deleteStorageError);
-            } else {
-                 console.log(`[ContractService] Successfully deleted existing executed document from storage (Path: ${oldFilePath})`);
-            }
-            deletedExisting = true;
-        }
-
-        const fileExtension = file.name.split('.').pop();
-        const fileName = `${crypto.randomUUID()}.${fileExtension}`;
-        const filePath = `${contractId}/${fileName}`;
-        console.log(`[ContractService] Uploading executed doc. Contract: ${contractId}, Path: ${filePath}`);
-
-        const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('executed-documents')
-            .upload(filePath, file, { cacheControl: '3600', upsert: false });
-
-        if (uploadError) {
-            console.error('[ContractService] Supabase storage upload error:', uploadError);
-            throw uploadError;
-        }
-        console.log('[ContractService] Storage Upload successful:', uploadData);
-
-        const insertPayload: DbCoiFileInsert = {
-            contract_id: contractId,
-            file_name: file.name,
-            file_path: filePath,
-            is_executed_contract: true,
-            uploaded_by: userId,
-            organization_id: this.organizationId,
-        };
-
-        const { data: insertedData, error: dbError } = await supabase
-            .from('contract_coi_files')
-            .insert(insertPayload)
-            .select()
-            .single();
-
-        if (dbError) {
-            console.error('[ContractService] Database insert error:', dbError);
-            throw dbError;
-        }
-        console.log('[ContractService] Database insert successful:', insertedData);
-
-        try {
-            const actionType = deletedExisting ? 'executed_document_replaced' : 'executed_document_uploaded';
-            const auditChanges: Record<string, any> = { new_file_name: file.name, new_path: filePath };
-            if (oldFilePath) {
-                auditChanges.old_path = oldFilePath;
-            }
-
-            const auditTrailPayload: DbAuditTrailInsert = {
-                contract_id: contractId,
-                action_type: actionType,
-                changes: auditChanges,
-                performed_by_email: userEmail,
-                performed_by: userId,
-                organization_id: this.organizationId,
-            };
-
-            const { error: auditError } = await supabase
-                .from('contract_audit_trail')
-                .insert(auditTrailPayload);
-            if (auditError) {
-                console.warn('[ContractService] Failed to insert audit trail:', auditError);
-            } else {
-                console.log(`[ContractService] Audit trail insert successful (${actionType}).`);
-            }
-        } catch (auditErr) {
-            console.warn('[ContractService] Exception during audit trail insert:', auditErr);
-        }
-
-        return { data: insertedData, error: null };
-
-    } catch (error: any) {
-      console.error('[ContractService] Exception during upload process:', error);
-      const message = error.message || 'An unexpected error occurred during the upload process.';
-      const statusCode = error.statusCode || (error.code ? 'DB_' + error.code : '500');
-      const errorName = error.error || error.name || 'UploadError';
-      return { data: null, error: { message, statusCode, error: errorName } };
-    }
-  }
-
-  async uploadGeneralAttachment(contractId: string, file: File, userId: string, userEmail: string): Promise<{ data: DbCoiFile | null; error: any }> {
-    if (userId !== this.userId || !this.organizationId) {
-        console.error(`[ContractService] Mismatch or missing context during uploadGeneralAttachment. Provided User: ${userId}, Service User: ${this.userId}, Service Org: ${this.organizationId}`);
-        return { data: null, error: new Error("Service context mismatch or missing.") };
-    }
-    try {
-      const supabase = await createAuthenticatedSupabaseClient(this.getToken);
-      const fileExtension = file.name.split('.').pop();
-      const fileName = `${crypto.randomUUID()}.${fileExtension}`;
-      const filePath = `${contractId}/${fileName}`; 
-      console.log(`[ContractService] Uploading general attachment. Contract: ${contractId}, Path: ${filePath}`);
-
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('general-attachments')
-        .upload(filePath, file, { cacheControl: '3600', upsert: false });
-
-      if (uploadError) {
-        console.error('[ContractService] Supabase storage upload error (general attachment):', uploadError);
-        const message = uploadError.message || 'Failed to upload file to storage.';
-        const statusCode = (uploadError as any).statusCode || '500';
-        return { data: null, error: { message, statusCode, error: uploadError.name || 'StorageUploadError' } };
-      }
-      console.log('[ContractService] General attachment Storage Upload successful:', uploadData);
-
-      const insertPayload: DbCoiFileInsert = {
-          contract_id: contractId,
-          file_name: file.name, 
-          file_path: filePath, 
-          is_executed_contract: false,
-          uploaded_by: userId,
-          organization_id: this.organizationId, 
-      };
-
-      const { data: insertedData, error: dbError } = await supabase
-        .from('contract_coi_files')
-        .insert(insertPayload)
-        .select()
-        .single();
-
-      if (dbError) {
-        console.error('[ContractService] Database insert error (general attachment):', dbError);
-        throw dbError;
-      }
-      console.log('[ContractService] Database insert successful (general attachment):', insertedData);
-
-      try {
-           const auditTrailPayload: DbAuditTrailInsert = {
-            contract_id: contractId,
-            action_type: 'attachment_uploaded',
-            changes: { file_name: file.name, path: filePath },
-            performed_by_email: userEmail,
-            performed_by: userId,
-            organization_id: this.organizationId,
-          };
-
-          const { error: auditError } = await supabase
-            .from('contract_audit_trail')
-            .insert(auditTrailPayload);
-           if (auditError) {
-               console.warn('[ContractService] Failed to insert attachment upload audit trail:', auditError);
-           } else {
-               console.log('[ContractService] Attachment upload audit trail insert successful.');
-           }
-      } catch (auditErr) {
-           console.warn('[ContractService] Exception during attachment upload audit trail insert:', auditErr);
-      }
-
-      return { data: insertedData, error: null };
-
-    } catch (error: any) {
-      console.error('[ContractService] Exception during general attachment upload process:', error);
-      const message = error.message || 'An unexpected error occurred during the upload process.';
-      const statusCode = error.statusCode || (error.code ? 'DB_' + error.code : '500');
-      const errorName = error.error || error.name || 'UploadError';
-      return { data: null, error: { message, statusCode, error: errorName } };
-    }
-  }
-
-  async downloadFile(filePath: string, bucket: string = 'executed-documents'): Promise<{ data: Blob | null; error: any }> {
-    try {
-      const supabase = await createAuthenticatedSupabaseClient(this.getToken);
-      console.log(`[ContractService] Downloading file from bucket: ${bucket}, path: ${filePath}`);
-      const { data, error } = await supabase.storage
-        .from(bucket)
-        .download(filePath);
-
-      if (error) {
-        console.error("Error downloading file:", error);
-        throw error;
-      }
-      return { data, error: null };
-    } catch (error) {
-      console.error("Exception downloading file:", error);
-      return { data: null, error };
-    }
-  }
-
-  async createContract(contractData: Omit<DbContractInsert, 'id' | 'created_at' | 'contract_number' | 'status' | 'organization_id' | 'creator_id' | 'creator_email' | 'comments'>, userId: string, userEmail: string): Promise<{ data: DbContract | null; error: any }> {
-      if (userId !== this.userId || userEmail !== this.userEmail || !this.organizationId) {
-           console.error(`[ContractService] Mismatch or missing context during createContract. Provided User: ${userId}/${userEmail}, Service User: ${this.userId}/${this.userEmail}, Service Org: ${this.organizationId}`);
-           return { data: null, error: new Error("Service context mismatch or missing.") };
-       }
-
-      try {
-          const deptPrefix = (contractData.department || 'GEN').substring(0, 3).toUpperCase();
-          const year = new Date().getFullYear();
-          const randomSuffix = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-          const contractNumber = `${deptPrefix}-${year}-${randomSuffix}`;
-
-          const insertPayload: DbContractInsert = {
-              ...contractData,
-              contract_number: contractNumber,
-              status: 'new',
-              type: contractData.type,
-              organization_id: this.organizationId,
-              creator_id: this.userId,
-              creator_email: this.userEmail,
-              comments: [],
-          };
-          
-          console.log("[ContractService] Inserting new contract:", insertPayload);
-
-          const supabase = await createAuthenticatedSupabaseClient(this.getToken);
-          const { data: insertedData, error: dbError } = await supabase
-              .from('contracts')
-              .insert(insertPayload)
-              .select()
-              .single();
-
-          if (dbError) {
-              console.error('[ContractService] Database insert error (createContract):', dbError);
-              throw dbError;
-          }
-          
-          console.log('[ContractService] Contract created successfully:', insertedData);
-          const newContractId = insertedData.id;
-
-          try {
-              const auditPayload: DbAuditTrailInsert = {
-                  contract_id: newContractId,
-                  action_type: 'contract_created',
-                  changes: { initial_data: contractData },
-                  performed_by: this.userId,
-                  performed_by_email: this.userEmail,
-                  organization_id: this.organizationId
-              };
-              const { error: auditError } = await supabase
-                  .from('contract_audit_trail')
-                  .insert(auditPayload);
-              if (auditError) {
-                  console.warn('[ContractService] Failed to insert creation audit trail:', auditError);
-              }
-          } catch (auditException) {
-              console.error('[ContractService] Exception inserting creation audit trail:', auditException);
-          }
-
-          return { data: insertedData as DbContract, error: null }; 
-
-      } catch (error: any) {
-          console.error('[ContractService] Exception during createContract process:', error);
-          const message = error.message || 'An unexpected error occurred while creating the contract.';
-          return { data: null, error: { message, error: error.name || 'CreateError' } };
-      }
+  async deleteContractFile(filePath: string, contractId: string, organizationId: string): Promise<{ data: boolean | null; error: any }> {
+     if (!this.organizationId || this.organizationId !== organizationId) {
+         console.error(`[ContractService] deleteContractFile Org ID mismatch/missing. Service: ${this.organizationId}, Request: ${organizationId}`);
+         return { data: false, error: { message: "Organization ID mismatch or missing" } };
+     }
+     return this.fileService.deleteFile(filePath, contractId, organizationId);
   }
 
   async getContractAuditTrail(contractId: string): Promise<{ data: any[] | null; error: any }> {
@@ -743,5 +482,56 @@ export class ContractService implements IContractService {
           console.error("[ContractService] Error processing addComment:", error);
           return { error };
       }
+  }
+
+  async createContract(contractData: any, userId: string, userEmail: string): Promise<{ data: DbContract | null; error: any }> {
+    console.warn("[ContractService] createContract is a placeholder. Received:", { contractData, userId, userEmail });
+    const supabase = await createAuthenticatedSupabaseClient(this.getToken);
+    if (!this.organizationId) {
+        return { data: null, error: new Error("Organization ID is not set in ContractService context.") };
+    }
+    if (!this.userId || !this.userEmail) {
+        return { data: null, error: new Error("User ID or Email is not set in ContractService context.") };
+    }
+
+    // Basic placeholder payload - In a real scenario, map contractData to DbContractInsert carefully
+    const insertPayload: DbContractInsert = {
+      // Mandatory fields from DbContractInsert (based on typical Supabase table)
+      contract_number: contractData.contract_number || `CN-${Date.now()}`,
+      title: contractData.title || 'Untitled Contract',
+      status: 'draft', // Default status
+      type: 'other', // Default type
+      organization_id: this.organizationId,
+      creator_id: this.userId, 
+      creator_email: this.userEmail,
+      amount: contractData.amount || 0, // Ensure amount is a number
+      department: contractData.department || 'N/A',
+      vendor: contractData.vendor || 'N/A',
+      start_date: contractData.startDate || new Date().toISOString(),
+      end_date: contractData.endDate || new Date().toISOString(),
+      // Optional fields - add if provided in contractData
+      description: contractData.description || null,
+      // ... add other fields from DbContractInsert as needed/available
+    };
+
+    const { data, error } = await supabase
+        .from('contracts')
+        .insert(insertPayload)
+        .select()
+        .single();
+
+    if (error) {
+        console.error("Error creating contract (placeholder):", error);
+        return { data: null, error };
+    }
+    // Optionally add audit trail entry for contract creation
+    if (data) {
+        this.addAuditTrailEntry({
+            contract_id: data.id,
+            action_type: 'contract_created',
+            changes: { initial_data: insertPayload }
+        }).catch(auditError => console.error("Failed to add audit trail for contract creation:", auditError));
+    }
+    return { data: data as DbContract, error: null };
   }
 } 

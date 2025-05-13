@@ -115,48 +115,92 @@ export const createAuthenticatedSupabaseClient = async (
         throw new Error("Supabase URL is missing in environment variables.");
     }
 
-    console.log("[createAuthenticatedSupabaseClient] Fetching Clerk JWT...");
-    const token = await getToken({ skipCache: false });
-    console.log(`[createAuthenticatedSupabaseClient] Clerk JWT fetched (first few chars): ${token?.substring(0, 8)}...`);
+    // We don't need to fetch the token here anymore if using the accessToken factory
+    // console.log("[createAuthenticatedSupabaseClient] Fetching Clerk JWT...");
+    // const token = await getToken({ skipCache: false }); 
+    // console.log(`[createAuthenticatedSupabaseClient] Clerk JWT fetched (first few chars): ${token?.substring(0, 8)}...`);
 
-    if (!token) {
-        throw new Error("Failed to get JWT from Clerk. User might not be authenticated.");
-    }
+    // if (!token) {
+    //     throw new Error("Failed to get JWT from Clerk. User might not be authenticated.");
+    // }
 
-    // ---- START JWT DECODING LOG ----
-    const decodedPayload = decodeJwtPayload(token);
-    if (decodedPayload) {
-        console.log("[createAuthenticatedSupabaseClient] Decoded JWT Payload:", decodedPayload);
-        console.log(`[createAuthenticatedSupabaseClient] JWT Org ID Claim (org_id): ${decodedPayload.org_id ?? 'Not Found'}`);
-        // Add checks for other relevant claims like 'sub' (Supabase User ID), 'exp' (expiration)
-        console.log(`[createAuthenticatedSupabaseClient] JWT Subject Claim (sub): ${decodedPayload.sub ?? 'Not Found'}`);
-        const expirationTime = decodedPayload.exp ? new Date(decodedPayload.exp * 1000) : 'N/A';
-        console.log(`[createAuthenticatedSupabaseClient] JWT Expiration: ${expirationTime}`);
-    } else {
-        console.warn("[createAuthenticatedSupabaseClient] Could not decode JWT payload.");
-    }
+    // ---- JWT DECODING LOG (can be kept for debugging if needed, but token is fetched in accessToken now) ----
+    // const decodedPayload = decodeJwtPayload(token); 
+    // if (decodedPayload) {
+    //     console.log("[createAuthenticatedSupabaseClient] Decoded JWT Payload:", decodedPayload);
+    //     console.log(`[createAuthenticatedSupabaseClient] JWT Org ID Claim (org_id): ${decodedPayload.org_id ?? 'Not Found'}`);
+    //     console.log(`[createAuthenticatedSupabaseClient] JWT Subject Claim (sub): ${decodedPayload.sub ?? 'Not Found'}`);
+    //     const expirationTime = decodedPayload.exp ? new Date(decodedPayload.exp * 1000) : 'N/A';
+    //     console.log(`[createAuthenticatedSupabaseClient] JWT Expiration: ${expirationTime}`);
+    // } else {
+    //     console.warn("[createAuthenticatedSupabaseClient] Could not decode JWT payload.");
+    // }
     // ---- END JWT DECODING LOG ----
 
-    console.log("[createAuthenticatedSupabaseClient] Creating Supabase client with JWT...");
-    // Pass the anon key, even with global auth headers, as the client library seems to require it.
+    console.log("[createAuthenticatedSupabaseClient] Creating Supabase client with accessToken factory...");
     const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     if (!supabaseAnonKey) {
-      // This should ideally have been caught earlier, but double-check.
       throw new Error("Supabase Anon Key is missing in environment variables for authenticated client creation.");
     }
+
     const authenticatedClient = createClient<Database>(supabaseUrl, supabaseAnonKey, { 
-        global: {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-        },
+        // global: { // Remove global header setting
+        //     headers: {
+        //         Authorization: `Bearer ${token}`,
+        //     },
+        // },
         auth: {
-            autoRefreshToken: false, // Refresh is handled by Clerk
-            persistSession: false, // Session is managed by Clerk
+            autoRefreshToken: false, 
+            persistSession: false, 
             detectSessionInUrl: false,
         },
+        // Add the accessToken factory function
+        async accessToken() {
+          console.log("[SupabaseClient accessTokenFactory] Fetching token via getToken()...");
+          const token = await getToken({ skipCache: false }); // skipCache might be important
+          if (!token) {
+            console.warn("[SupabaseClient accessTokenFactory] getToken() returned null/undefined.");
+            return null;
+          }
+          console.log(`[SupabaseClient accessTokenFactory] Token fetched (first 8 chars): ${token.substring(0,8)}...`);
+          
+          // Decode and log the token payload for debugging storage RLS
+          const decodedPayload = decodeJwtPayload(token);
+          if (decodedPayload) {
+              // Log the full payload as a string to avoid console truncation
+              console.log("[SupabaseClient accessTokenFactory] Decoded JWT Payload (RAW):", token);
+              console.log("[SupabaseClient accessTokenFactory] Decoded JWT Payload (Parsed JSON):", JSON.stringify(decodedPayload, null, 2));
+              
+              // Attempt to log specific claims relevant to RLS
+              // Try common locations for org_id for context, but use the correct one definitively
+              const orgIdFromRoot = decodedPayload.org_id;
+              const orgIdFromSessionClaims = decodedPayload.session_claims && decodedPayload.session_claims.org_id;
+              // Correcting based on logs: Clerk nests org info under 'o'
+              const orgIdFromOClaim = decodedPayload.o && decodedPayload.o.id; 
+              const orgIdFromPublicMetadata = decodedPayload.public_metadata && decodedPayload.public_metadata.org_id;
+
+
+              // Directly use the known correct claim based on observed JWT structure
+              const orgIdClaim = orgIdFromOClaim; 
+              
+              console.log("[SupabaseClient accessTokenFactory] Potential org_id sources - Root:", orgIdFromRoot);
+              console.log("[SupabaseClient accessTokenFactory] Potential org_id sources - session_claims.org_id:", orgIdFromSessionClaims);
+              console.log("[SupabaseClient accessTokenFactory] Potential org_id sources - o.id:", orgIdFromOClaim); // Log the one we are using
+              console.log("[SupabaseClient accessTokenFactory] Potential org_id sources - public_metadata.org_id:", orgIdFromPublicMetadata);
+
+
+              console.log("[SupabaseClient accessTokenFactory] JWT Org ID Claim (now definitive):", orgIdClaim || "Not Found - THIS IS AN ERROR!"); // Updated log message
+              console.log("[SupabaseClient accessTokenFactory] JWT Subject Claim (sub):", decodedPayload.sub || "Not Found");
+              if (decodedPayload.exp) {
+                console.log("[SupabaseClient accessTokenFactory] JWT Expiration:", new Date(decodedPayload.exp * 1000));
+              }
+          } else {
+            console.warn("[SupabaseClient accessTokenFactory] Failed to decode JWT payload.");
+          }
+          return token;
+        }
     });
-    console.log("[createAuthenticatedSupabaseClient] Authenticated Supabase client created successfully.");
+    console.log("[createAuthenticatedSupabaseClient] Authenticated Supabase client created with accessToken factory.");
     return authenticatedClient;
 };
 

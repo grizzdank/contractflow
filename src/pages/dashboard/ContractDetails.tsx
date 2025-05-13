@@ -13,13 +13,14 @@ import { ContractAuditTrail } from "@/components/contract/ContractAuditTrail";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { createAuthenticatedSupabaseClient } from "@/lib/supabase/client";
-import { useClerkAuth } from "@/contexts/ClerkAuthContext";
+import { useClerkAuth, ClerkAuthContextType } from "@/contexts/ClerkAuthContext";
 import { Database } from "@/lib/supabase/types";
 import { toast } from "@/components/ui/use-toast";
 import { SupabaseClient, PostgrestError } from '@supabase/supabase-js';
 import { formatISO } from 'date-fns'; // For timestamp
 import { Loader2, ArrowLeft } from "lucide-react"; // Import Loader and ArrowLeft icon
 import { Skeleton } from "@/components/ui/skeleton";
+import { DisplayFile } from "@/domain/types/DisplayFile"; // This is the correct import
 
 // Type aliases for cleaner code
 type ContractsTable = Database['public']['Tables']['contracts'];
@@ -28,9 +29,9 @@ type ContractUpdate = ContractsTable['Update'];
 type ContractStatusDb = ContractsTable['Row']['status']; // Get DB status enum type
 type ContractTypeDb = ContractsTable['Row']['type'];   // Get DB type enum type
 type AuditTrailInsert = Database['public']['Tables']['contract_audit_trail']['Insert'];
-type COIFilesTable = Database['public']['Tables']['contract_coi_files'];
-type COIFileRow = COIFilesTable['Row'];
-type COIFileInsert = COIFilesTable['Insert'];
+type FilesTable = Database['public']['Tables']['contract_coi_files']; // Table will be renamed later
+type DbFileRecord = FilesTable['Row'];
+type COIFileInsert = FilesTable['Insert'];
 type ContractRow = Database['public']['Tables']['contracts']['Row'];
 
 // Local JSON type definition (compatible with Supabase JSONB)
@@ -38,17 +39,6 @@ type ContractRow = Database['public']['Tables']['contracts']['Row'];
 type JsonPrimitive = string | number | boolean | null;
 type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
 type Json = JsonValue; // Use JsonValue as the primary Json type
-
-// Frontend type for COI File (adjust based on actual DB columns)
-interface COIFile {
-  id: string; // Assuming UUID primary key
-  contract_id: string;
-  file_name: string;
-  file_path: string; // Path in Supabase Storage
-  uploaded_at: string;
-  uploaded_by?: string; // Optional uploader ID
-  expiration_date: string; // Added based on linter error
-}
 
 // Define a structure for comments within the contract
 interface ContractComment {
@@ -172,15 +162,18 @@ const mapContractToDbUpdate = (contract: Contract, organizationId: string): Cont
   };
 };
 
-// Function to map DB row to frontend COIFile type
-const mapDbToCOIFile = (data: COIFileRow): COIFile => ({
+// Update mapDbToCOIFile to mapDbToFile and handle new fields
+const mapDbToFileCorrected = (data: DbFileRecord): DisplayFile => ({
   id: data.id,
   contract_id: data.contract_id,
   file_name: data.file_name,
   file_path: data.file_path,
+  document_type: (data as any).document_type || 'unknown', 
+  mime_type: (data as any).mime_type || null,
+  file_size: (data as any).file_size ?? null, // Use nullish coalescing for potentially zero file size
   uploaded_at: data.uploaded_at,
-  uploaded_by: data.uploaded_by ?? undefined, // Handle potential null
-  expiration_date: data.expiration_date, // Added
+  uploaded_by: data.uploaded_by || undefined,
+  expiration_date: data.expiration_date || null, 
 });
 
 const ContractDetails = () => {
@@ -188,18 +181,22 @@ const ContractDetails = () => {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [newComment, setNewComment] = useState("");
-  const [coiFiles, setCoiFiles] = useState<COIFile[]>([]);
+  const [coiFiles, setCoiFiles] = useState<DisplayFile[]>([]);
+  const [executedDocument, setExecutedDocument] = useState<DisplayFile | null>(null);
+  const [generalAttachments, setGeneralAttachments] = useState<DisplayFile[]>([]);
   const [contract, setContract] = useState<Contract | null>(null);
   const [isLoadingContract, setIsLoadingContract] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isLoadingFiles, setIsLoadingFiles] = useState(true);
 
   const {
     getToken,
-    userDetails,
+    appUserDetails, // Use appUserDetails from context
     isLoading: isAuthLoading,
-    contractServiceInstance
+    contractServiceInstance,
+    fileServiceInstance // This should now be correctly provided by useClerkAuth
   } = useClerkAuth();
-  const { organizationId, supabaseUserId, email: userEmail } = userDetails;
+  const { organizationId, supabaseUserId, email: userEmail } = appUserDetails;
 
   const contractId = contract?.id;
 
@@ -422,126 +419,60 @@ const ContractDetails = () => {
       addComment(newComment); // Call the actual addComment with the current state value
   };
 
-  const loadCOIFiles = async (currentContractId: string) => {
-    if (!getToken || !currentContractId) return;
-    console.log("[ContractDetails] Loading COI files for contract:", currentContractId);
-    try {
-        const authenticatedSupabase = await createAuthenticatedSupabaseClient(getToken);
-        const { data, error: coiError } = await authenticatedSupabase
-            .from('contract_coi_files')
-            .select('*')
-            .eq('contract_id', currentContractId)
-            .eq('is_executed_contract', false)
-            .order('uploaded_at', { ascending: false });
-
-        if (coiError) {
-             console.error("[ContractDetails] Error loading COI files:", coiError);
-             throw coiError;
+  useEffect(() => {
+    if (contractId && contractServiceInstance) {
+      const fetchFiles = async () => {
+        setIsLoadingFiles(true);
+        const { data, error } = await contractServiceInstance.getAllContractFiles(contractId);
+        if (error) {
+          toast({ title: "Error fetching files", description: error.message, variant: "destructive" });
+          // setError("Failed to load contract files."); // Assuming setError is defined for this component's errors
+        } else if (data) {
+          const allDisplayFiles: DisplayFile[] = data.map(mapDbToFileCorrected);
+          setCoiFiles(allDisplayFiles.filter(f => f.document_type === 'coi'));
+          setExecutedDocument(allDisplayFiles.find(f => f.document_type === 'executed_agreement') || null);
+          setGeneralAttachments(allDisplayFiles.filter(f => f.document_type === 'general_attachment'));
         }
-        const mappedFiles = data ? data.map(mapDbToCOIFile) : [];
-        setCoiFiles(mappedFiles);
-        console.log("[ContractDetails] COI files loaded and mapped:", mappedFiles);
-    } catch (err: any) {
-         console.error("[ContractDetails] Exception loading COI files:", err);
-         toast({ title: "Error Loading COI Files", description: err.message, variant: "destructive" });
+        setIsLoadingFiles(false);
+      };
+      fetchFiles();
     }
+  }, [contractId, contractServiceInstance]);
+
+  const handleFileUploadSuccess = (fileName: string, filePath: string, documentType: string) => {
+    if (contractId && contractServiceInstance) {
+      contractServiceInstance.getAllContractFiles(contractId).then(({ data: fetchedData, error: fetchError }) => {
+        if (fetchError) { /* ... */ } 
+        else if (fetchedData) {
+          const allDisplayFiles: DisplayFile[] = fetchedData.map(mapDbToFileCorrected);
+          setCoiFiles(allDisplayFiles.filter(f => f.document_type === 'coi'));
+          setExecutedDocument(allDisplayFiles.find(f => f.document_type === 'executed_agreement') || null);
+          setGeneralAttachments(allDisplayFiles.filter(f => f.document_type === 'general_attachment'));
+        }
+      });
+    }
+    toast({ title: "Upload Successful", description: `${fileName} uploaded.` });
   };
 
-  const handleCOIUploadSuccess = async (fileName: string, filePath: string) => {
-    console.log("[ContractDetails] handleCOIUploadSuccess called.");
-    toast({ title: "COI Uploaded", description: `${fileName} uploaded successfully.` });
-
-      if (contractId && supabaseUserId && userEmail && getToken && organizationId) {
-          try {
-              const authenticatedSupabase = await createAuthenticatedSupabaseClient(getToken);
-               const auditPayload: AuditTrailInsert = {
-                   contract_id: contractId,
-                   action_type: 'coi_uploaded',
-                   changes: { file_name: fileName, path: filePath },
-                   performed_by: supabaseUserId,
-                   performed_by_email: userEmail,
-                   organization_id: organizationId
-               };
-               const { error: auditError } = await contractServiceInstance.addAuditTrailEntry(auditPayload);
-               if (auditError) {
-                   console.warn("[ContractDetails] Failed to insert COI upload audit trail:", auditError);
-               }
-          } catch (auditException) {
-               console.error("[ContractDetails] Exception inserting COI upload audit trail:", auditException);
-          }
-      } else {
-           console.warn("[ContractDetails] Missing data for COI upload audit trail.");
-      }
-
-      if (contractId) {
-         loadCOIFiles(contractId);
-      }
-  };
-
-  const handleCOIDelete = async (fileId: string, filePath: string) => {
-    if (!getToken || !contractId || !supabaseUserId || !userEmail || !organizationId) {
-      toast({ title: "Error", description: "Missing context for deletion.", variant: "destructive" });
-      return;
-    }
-    console.log(`[ContractDetails] Deleting COI file ID: ${fileId}, Path: ${filePath}`);
-
-    const originalFiles = coiFiles;
-    setCoiFiles(prevFiles => prevFiles.filter(f => f.id !== fileId));
-
-    try {
-      const authenticatedSupabase = await createAuthenticatedSupabaseClient(getToken);
-
-      const { error: dbError } = await authenticatedSupabase
-        .from('contract_coi_files')
-        .delete()
-        .eq('id', fileId)
-        .eq('contract_id', contractId);
-
-      if (dbError) {
-        console.error("[ContractDetails] Error deleting COI DB record:", dbError);
-        throw dbError;
-      }
-      console.log("[ContractDetails] COI DB record deleted successfully.");
-
-      const { error: storageError } = await authenticatedSupabase.storage
-        .from('coi-documents')
-        .remove([filePath]);
-
-      if (storageError) {
-        console.warn("[ContractDetails] Error deleting COI from storage (DB record deleted):", storageError);
-        toast({ title: "Warning", description: "File deleted from records, but failed to remove from storage." });
-      } else {
-        console.log("[ContractDetails] COI file deleted from storage successfully.");
-        toast({ title: "Success", description: "COI document deleted successfully." });
-      }
-
-       try {
-           const auditPayload: AuditTrailInsert = {
-               contract_id: contractId,
-               action_type: 'coi_deleted',
-               changes: { file_id: fileId, path: filePath },
-               performed_by: supabaseUserId,
-               performed_by_email: userEmail,
-               organization_id: organizationId
-           };
-           const { error: auditError } = await contractServiceInstance.addAuditTrailEntry(auditPayload);
-           if (auditError) {
-               console.warn("[ContractDetails] Failed to insert COI delete audit trail:", auditError);
-           }
-       } catch (auditException) {
-           console.error("[ContractDetails] Exception inserting COI delete audit trail:", auditException);
-       }
-
-    } catch (err: any) {
-      console.error("[ContractDetails] Error deleting COI file:", err);
-      toast({ title: "Error Deleting COI", description: err.message, variant: "destructive" });
-      setCoiFiles(originalFiles); // Revert optimistic update
-    }
-  };
-
-  const refreshCOIFiles = () => {
-    if (contractId) {
-        loadCOIFiles(contractId);
+  const handleDeleteFile = async (fileId: string, filePath: string, delContractId: string, delOrganizationId: string) => {
+    if (contractServiceInstance && delContractId && delOrganizationId) {
+       const { error } = await contractServiceInstance.deleteContractFile(filePath, delContractId, delOrganizationId);
+        if (!error) {
+            contractServiceInstance.getAllContractFiles(delContractId).then(({ data: fetchedData, error: fetchError }) => {
+                if (fetchError) { /* ... */ }
+                else if (fetchedData) {
+                    const allDisplayFiles: DisplayFile[] = fetchedData.map(mapDbToFileCorrected);
+                    setCoiFiles(allDisplayFiles.filter(f => f.document_type === 'coi'));
+                    setExecutedDocument(allDisplayFiles.find(f => f.document_type === 'executed_agreement') || null);
+                    setGeneralAttachments(allDisplayFiles.filter(f => f.document_type === 'general_attachment'));
+                }
+            });
+            toast({ title: "File Deleted", description: `File ${filePath} deleted successfully.` });
+        } else {
+            toast({ title: "Error Deleting File", description: error.message, variant: "destructive" });
+        }
+    } else {
+        toast({ title: "Error", description: "Cannot delete file: Service or IDs missing.", variant: "destructive" });
     }
   };
 
@@ -626,24 +557,39 @@ const ContractDetails = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
            <Card className="p-4 bg-white shadow-sm">
             <ContractExecutedDocument
+              document={executedDocument}
               contractId={contract.id}
-              onDocumentUploaded={refreshCOIFiles}
+              organizationId={organizationId ?? ''}
+              onUploadSuccess={handleFileUploadSuccess}
+              onDelete={handleDeleteFile}
+              isLoading={isLoadingFiles}
+              fileService={fileServiceInstance}
             />
           </Card>
 
           <Card className="p-4 bg-white shadow-sm">
                 <COIFileUpload
               contractId={contract.id}
+              organizationId={organizationId ?? ''}
               coiFiles={coiFiles}
-              onUploadSuccess={handleCOIUploadSuccess}
-              onDelete={handleCOIDelete}
-              isLoading={isLoadingContract}
+              onUploadSuccess={handleFileUploadSuccess}
+              onDelete={handleDeleteFile}
+              isLoading={isLoadingFiles}
+              fileService={fileServiceInstance}
             />
           </Card>
               </div>
 
         <Card className="p-4 bg-white shadow-sm">
-          <ContractAttachments contractId={contract.id} />
+          <ContractAttachments
+            attachments={generalAttachments}
+            contractId={contract.id}
+            organizationId={organizationId ?? ''}
+            onUploadSuccess={handleFileUploadSuccess}
+            onDelete={handleDeleteFile}
+            isLoading={isLoadingFiles}
+            fileService={fileServiceInstance}
+          />
         </Card>
 
         <Card className="p-4 bg-white shadow-sm">

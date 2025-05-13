@@ -2,54 +2,82 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Upload, Trash2, FileText, Loader2 } from "lucide-react";
-import { contractService } from "@/lib/dataService";
+import { toast } from "@/components/ui/use-toast";
+import { IFileService } from "@/services/interfaces/IFileService";
+import { useClerkAuth } from "@/contexts/ClerkAuthContext";
 
-interface COIFile {
+interface DisplayFile {
   id: string;
   file_name: string;
   file_path: string;
+  document_type: string;
+  mime_type: string | null;
+  file_size: number | null;
   uploaded_at: string;
+  uploaded_by?: string;
   expiration_date: string | null;
 }
 
 interface COIFileUploadProps {
   contractId: string;
-  coiFiles: COIFile[];
-  onUploadSuccess: (fileName: string, filePath: string) => void;
-  onDelete: (fileId: string, filePath: string) => void;
+  organizationId: string;
+  coiFiles: DisplayFile[];
+  onUploadSuccess: (fileName: string, filePath: string, documentType: string) => void;
+  onDelete: (fileId: string, filePath: string, contractId: string, organizationId: string) => void;
   isLoading?: boolean;
+  fileService: IFileService;
 }
 
 export function COIFileUpload({
   contractId,
+  organizationId,
   coiFiles,
   onUploadSuccess,
   onDelete,
-  isLoading = false
+  isLoading = false,
+  fileService
 }: COIFileUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [expirationDate, setExpirationDate] = useState<string>("");
   const [uploadError, setUploadError] = useState<string | null>(null);
 
+  const { appUserDetails } = useClerkAuth();
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file || !fileService || !organizationId) {
+        if (!organizationId) setUploadError("Cannot upload: Organization ID missing.");
+        if (!fileService) setUploadError("Cannot upload: File service not available.");
+        return;
+    }
+    if (!appUserDetails?.supabaseUserId) {
+        setUploadError("Cannot upload: User ID not available.");
+        setIsUploading(false);
+        return;
+    }
 
     setIsUploading(true);
     setUploadError(null);
     try {
-      console.log(`[COIUpload] Uploading ${file.name} with expiry ${expirationDate || 'N/A'}`);
-      const { data, error } = await contractService.uploadCOIFile(contractId, file, expirationDate);
+      console.log(`[COIUpload] Uploading ${file.name} for Org ${organizationId} with expiry ${expirationDate || 'N/A'}`);
+      const { data, error } = await fileService.uploadContractFile(
+          contractId, 
+          file, 
+          false,
+          organizationId, 
+          appUserDetails.supabaseUserId,
+          expirationDate
+      );
 
       if (error) throw error;
 
-      const filePath = data?.path;
+      const filePath = data?.file_path;
       if (!filePath) {
         throw new Error("Upload succeeded but file path was not returned.");
       }
       
       console.log(`[COIUpload] Upload success for ${file.name}. Path: ${filePath}`);
-      onUploadSuccess(file.name, filePath);
+      onUploadSuccess(file.name, filePath, 'coi');
     } catch (error: any) {
       console.error('Error uploading COI file:', error);
       setUploadError(error.message || "Failed to upload file.");
@@ -61,8 +89,13 @@ export function COIFileUpload({
   };
 
   const handleDeleteClick = (fileId: string, filePath: string) => {
-    console.log(`[COIUpload] Delete clicked for File ID: ${fileId}, Path: ${filePath}`);
-    onDelete(fileId, filePath);
+    if (!organizationId) {
+        console.error("Cannot delete: Organization ID missing.");
+        toast({ title: "Error", description: "Cannot delete file: Organization ID missing.", variant: "destructive"});
+        return;
+    }
+    console.log(`[COIUpload] Delete clicked for File ID: ${fileId}, Path: ${filePath}, Org: ${organizationId}`);
+    onDelete(fileId, filePath, contractId, organizationId);
   };
 
   return (

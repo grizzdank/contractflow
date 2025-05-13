@@ -62,70 +62,6 @@ const getContractSuffix = (type: Contract['type'], amendmentNumber?: string): st
   }
 };
 
-const mapDbStatusToFilterValue = (dbStatus: string | null | undefined): ContractStatus => {
-  switch (dbStatus) {
-    case 'new': return 'Requested';
-    case 'draft': return 'Draft';
-    case 'in_coord': return 'Review';
-    case 'in_signature': return 'InSignature';
-    case 'active': return 'ExecutedActive';
-    case 'executed': return 'ExecutedActive';
-    case 'expired': return 'ExecutedExpired';
-    default:
-      console.warn(`[Contracts] Unmapped DB status: ${dbStatus}. Falling back to 'Requested'.`);
-      return 'Requested';
-  }
-};
-
-const mapDbTypeToFilterValue = (dbType: string | null | undefined): ContractType => {
-  switch (dbType) {
-    case 'grant': return 'grant';
-    case 'service': return 'services';
-    case 'goods': return 'goods';
-    case 'product': return 'goods';
-    case 'sponsorship': return 'sponsorship';
-    case 'amendment': return 'amendment';
-    case 'vendor': return 'vendor_agreement';
-    case 'iaa': return 'interagency_agreement';
-    case 'mou': return 'mou';
-    case 'sole_source': return 'sole_source';
-    case 'rfp': return 'rfp';
-    default:
-      console.warn(`[Contracts] Unmapped DB type: ${dbType}. Falling back to 'services'.`);
-      return 'services';
-  }
-};
-
-const mapDbToContract = (data: any): Contract => {
-  const mappedStatus = mapDbStatusToFilterValue(data.status);
-  const mappedType = mapDbTypeToFilterValue(data.type);
-
-  return {
-    id: data.id,
-    contractNumber: data.contract_number,
-    title: data.title,
-    description: data.description,
-    vendor: data.vendor,
-    amount: data.amount,
-    startDate: data.start_date,
-    endDate: data.end_date,
-    status: mappedStatus,
-    type: mappedType,
-    department: data.department,
-    accountingCodes: data.accounting_codes,
-    vendorEmail: data.vendor_email,
-    vendorPhone: data.vendor_phone,
-    vendorAddress: data.vendor_address,
-    signatoryName: data.signatory_name,
-    signatoryEmail: data.signatory_email,
-    attachments: data.attachments || [],
-    comments: data.comments || [],
-    creatorId: data.creator_id,
-    creatorEmail: data.creator_email,
-    createdAt: data.created_at
-  };
-};
-
 const getStatusIcon = (status: Contract['status']) => {
     switch (status) {
       case 'ExecutedActive':
@@ -169,11 +105,22 @@ export const columns: ColumnDef<Contract>[] = [
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
-    cell: ({ row }) => (
-      <Link to={`/dashboard/contracts/${row.original.contractNumber}`} className="hover:underline text-blue-600">
-        {row.getValue("contractNumber") || "Pending"}
-      </Link>
-    ),
+    cell: ({ row }) => {
+      const contractNumber = row.getValue("contractNumber") as string | undefined | null;
+      const linkTarget = row.original.contractNumber; // Use original for link consistency
+      
+      // Display the contract number if it exists and isn't empty, otherwise show "Pending"
+      const displayText = contractNumber ? contractNumber : "Pending"; 
+      
+      // Only make it a link if the link target (original number) exists
+      return linkTarget ? (
+        <Link to={`/dashboard/contracts/${linkTarget}`} className="hover:underline text-blue-600">
+          {displayText}
+        </Link>
+      ) : (
+        <span>{displayText}</span> // Display as plain text if no valid link target
+      );
+    },
   },
   {
     accessorKey: "title",
@@ -294,79 +241,88 @@ const Contracts = () => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const navigate = useNavigate();
 
-  const { userDetails, getToken, isLoading: isAuthLoading } = useClerkAuth();
-  const organizationId = userDetails?.organizationId;
+  const {
+    getToken, 
+    appUserDetails, 
+    isLoading: isAuthContextLoading, 
+    contractServiceInstance,
+    authError
+  } = useClerkAuth();
+  
+  const organizationId = appUserDetails?.organizationId;
 
-  const loadContracts = useCallback(async () => {
-    if (!organizationId || !getToken) {
-        console.error("[Contracts] loadContracts called without OrgID or getToken.");
-        setError("Cannot load contracts: Missing organization or authentication.");
-        setIsLoadingContracts(false);
-        return;
-    }
-    console.log("[Contracts] loadContracts called");
-    setIsLoadingContracts(true);
-    setError(null);
-    try {
-      const authenticatedSupabase = await createAuthenticatedSupabaseClient(getToken);
-      console.log('[Contracts] Authenticated Supabase client created for fetch.');
-
-      const { data, error: fetchError } = await authenticatedSupabase
-        .from('contracts')
-        .select('*')
-        .eq('organization_id', organizationId);
-
-      console.log('[Contracts] Fetch response:', { data, fetchError });
-
-      if (fetchError) {
-        console.error('[Contracts] Error fetching contracts:', fetchError);
-        throw fetchError;
-      }
-
-      const mappedContracts = (data || []).map(mapDbToContract);
-      setContracts(mappedContracts);
-      console.log('[Contracts] Mapped contracts set:', mappedContracts);
-
-      const uniqueDepts = Array.from(
-        new Set(
-          mappedContracts
-            .map(c => c.department)
-            .filter((dept): dept is string => typeof dept === 'string' && dept.trim() !== '')
-        )
-      ).sort();
-      setAvailableDepartments(uniqueDepts);
-      console.log('[Contracts] Available departments set:', uniqueDepts);
-
-    } catch (err: any) {
-      console.error('[Contracts] Error in loadContracts process:', err);
-      const errorMessage = err.message || 'Unknown error';
-      setError(`Failed to load contracts: ${errorMessage}`);
-      toast({
-        title: "Error Loading Contracts",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoadingContracts(false);
-      console.log('[Contracts] loadContracts finished');
-    }
-  }, [organizationId, getToken]);
+  // Debug: Log initial context values
+  useEffect(() => {
+    console.log("[Contracts.tsx] Initial context values - isAuthContextLoading:", isAuthContextLoading, "appUserDetails.organizationId:", appUserDetails.organizationId, "contractServiceInstance:", !!contractServiceInstance, "authError:", authError);
+  }, []); // Run once on mount
 
   useEffect(() => {
-    console.log(`[Contracts] useEffect triggered. AuthLoading: ${isAuthLoading}, OrgID: ${organizationId}`);
+    console.log("[Contracts.tsx] Main useEffect triggered. isAuthContextLoading:", isAuthContextLoading, "OrgID:", appUserDetails.organizationId, "Service:", !!contractServiceInstance, "AuthError:", authError);
 
-    if (!isAuthLoading && organizationId) {
-      console.log("[Contracts] Auth loaded and OrgID present. Calling loadContracts.");
-      loadContracts();
-    } else if (!isAuthLoading && !organizationId) {
-      console.error("[Contracts] Auth loaded, but Organization ID is missing from context. Cannot load contracts.");
-      setError("Organization details are missing. Cannot load contracts.");
-      setIsLoadingContracts(false);
-    } else {
-      console.log("[Contracts] Waiting for auth context to load...");
+    if (isAuthContextLoading) {
+      console.log("[Contracts.tsx] Auth context is loading. Setting local loading true.");
       setIsLoadingContracts(true);
+      return;
     }
-  }, [isAuthLoading, organizationId, loadContracts]);
+
+    // Handle auth errors from context first
+    if (authError) {
+        console.error("[Contracts.tsx] Auth error from context:", authError.message);
+        toast({ title: "Authentication Error", description: authError.message, variant: "destructive" });
+        setIsLoadingContracts(false);
+        setContracts([]);
+        return;
+    }
+
+    if (!appUserDetails.organizationId) {
+      console.warn("[Contracts.tsx] Organization ID is missing. Cannot load contracts.");
+      // Don't toast immediately if auth is still loading, wait for authError or final state
+      if (!isAuthContextLoading) { 
+        toast({ title: "Configuration Error", description: "Organization ID not found. Cannot load contracts.", variant: "destructive" });
+      }
+      setIsLoadingContracts(false);
+      setContracts([]);
+      return;
+    }
+
+    if (!contractServiceInstance) {
+      console.warn("[Contracts.tsx] Contract service not available. Cannot load contracts.");
+      if (!isAuthContextLoading) {
+         toast({ title: "Service Error", description: "Contract service not available.", variant: "destructive" });
+      }
+      setIsLoadingContracts(false);
+      setContracts([]);
+      return;
+    }
+    
+    console.log("[Contracts.tsx] All checks passed. Fetching contracts for Org ID:", appUserDetails.organizationId);
+    setIsLoadingContracts(true); 
+    contractServiceInstance.getAllContracts()
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("[Contracts.tsx] Error fetching contracts:", error);
+          toast({ title: "Fetch Error", description: error.message || "Failed to fetch contracts.", variant: "destructive" });
+          setContracts([]);
+        } else if (data) {
+          console.log("[Contracts.tsx] Data received from service (already mapped):", data);
+          console.log("[Contracts.tsx] Contracts fetched successfully:", data.length, "items.");
+          setContracts(data); // Use the data directly
+        } else {
+          console.log("[Contracts.tsx] No contracts data returned, setting to empty array.");
+          setContracts([]);
+        }
+      })
+      .catch(catchError => { 
+          console.error("[Contracts.tsx] Caught unexpected error during getAllContracts chain:", catchError);
+          toast({ title: "Unexpected Error", description: "An error occurred while trying to fetch contracts.", variant: "destructive" });
+          setContracts([]);
+      })
+      .finally(() => {
+        setIsLoadingContracts(false);
+        console.log("[Contracts.tsx] Finished contract fetching process.");
+      });
+
+  }, [isAuthContextLoading, appUserDetails.organizationId, contractServiceInstance, authError]); // Added authError to dependencies
 
   // Debounce search updates
   useEffect(() => {
@@ -425,7 +381,7 @@ const Contracts = () => {
   // Initialize table with memoized options
   const table = useReactTable(tableOptions);
 
-  if (isAuthLoading) {
+  if (isAuthContextLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

@@ -1,144 +1,101 @@
-import React, { useState, useEffect, useRef } from "react";
-import { useUser } from "@clerk/clerk-react";
+import React, { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Upload, Download, FileText, Loader2 } from "lucide-react";
+import { Upload, Download, FileText, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { IFileService } from "@/services/interfaces/IFileService";
+import { DisplayFile } from "@/domain/types/DisplayFile";
 import { useClerkAuth } from "@/contexts/ClerkAuthContext";
-
-interface ExecutedDocument {
-  id: string;
-  file_name: string;
-  file_path: string;
-  uploaded_at: string;
-  is_executed_contract?: boolean | null;
-  uploaded_by?: string;
-  organization_id?: string;
-}
 
 interface ContractExecutedDocumentProps {
   contractId: string;
-  onDocumentUploaded: () => void;
+  organizationId: string;
+  document: DisplayFile | null;
+  onUploadSuccess: (fileName: string, filePath: string, documentType: string) => void;
+  onDelete: (fileId: string, filePath: string, contractId: string, organizationId: string) => void;
+  isLoading?: boolean;
+  fileService: IFileService;
 }
 
-export function ContractExecutedDocument({ contractId, onDocumentUploaded }: ContractExecutedDocumentProps) {
-  const { user: clerkUser } = useUser();
-  const { userDetails, contractServiceInstance, isLoading: isAuthLoading, error: authError } = useClerkAuth();
-  const supabaseUserId = userDetails?.supabaseUserId;
-  const [isLoading, setIsLoading] = useState(true);
+export function ContractExecutedDocument({
+  contractId,
+  organizationId,
+  document: executedDocument,
+  onUploadSuccess,
+  onDelete,
+  isLoading,
+  fileService
+}: ContractExecutedDocumentProps) {
   const [isUploading, setIsUploading] = useState(false);
-  const [executedDocument, setExecutedDocument] = useState<ExecutedDocument | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const contractService = contractServiceInstance;
-
-  const loadExecutedDocument = async () => {
-    if (!contractId || !contractService) {
-        if (!contractService) console.warn("[CED] Contract service instance not available from context yet.");
-        return;
-    }
-    setIsLoading(true);
-    setError(null);
-    try {
-      console.log(`[CED] Loading executed doc for contract: ${contractId}`);
-      const { data, error: fetchError } = await contractService.getContractCOIFiles(contractId);
-
-      if (fetchError) throw fetchError;
-
-      const executedDoc = data?.find(file => file.is_executed_contract === true);
-      console.log(`[CED] Found executed doc:`, executedDoc);
-      setExecutedDocument(executedDoc || null);
-    } catch (err: any) {
-      const message = err.message || "Failed to load executed document.";
-      console.error('[CED] Error loading executed document:', err);
-      setError(message);
-      toast.error(message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!isAuthLoading && contractService) {
-        loadExecutedDocument();
-    } else if (!isAuthLoading && !contractService) {
-        console.warn("[CED] Auth loaded but contract service instance is still null.");
-        setError("Contract service could not be initialized.");
-        setIsLoading(false);
-    }
-  }, [contractId, contractService, isAuthLoading]);
+  const { appUserDetails } = useClerkAuth();
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      setError(null);
     } else {
       setSelectedFile(null);
     }
   };
 
   const handleUploadClick = async () => {
-    if (!selectedFile || !contractService) {
-      toast.error("Please select a file first.");
-      if (!contractService) toast.error("Service not available from context.");
+    if (!selectedFile || !fileService || !organizationId || !contractId) {
+      toast.error("Cannot upload: Missing file, service, or context.");
       return;
     }
-    if (!supabaseUserId) {
-      toast.error("User database ID not found. Cannot upload.");
+    if (!appUserDetails?.supabaseUserId) {
+      toast.error("Cannot upload: User ID not available.");
+      setIsUploading(false);
       return;
     }
-    const userEmail = clerkUser?.primaryEmailAddress?.emailAddress ?? 'unknown@example.com';
 
     setIsUploading(true);
-    setError(null);
     toast.info(`Uploading ${selectedFile.name}...`);
 
     try {
-      console.log(`[CED] Uploading/Replacing file: ${selectedFile.name} for contract ${contractId}`);
-      const { data: uploadedData, error: uploadError } = await contractService.uploadExecutedDocument(contractId, selectedFile, supabaseUserId, userEmail);
+      const { data, error: uploadError } = await fileService.uploadContractFile(
+          contractId, 
+          selectedFile, 
+          true,
+          organizationId,
+          appUserDetails.supabaseUserId
+      );
 
-      if (uploadError) {
-        console.error('[CED] Raw upload error:', uploadError);
-        const message = (uploadError as any).message || 'Failed to upload executed document.';
-        toast.error(`Upload failed: ${message}`);
-        setError(`Upload failed: ${message}`);
-        throw new Error(message);
+      if (uploadError) throw uploadError;
+
+      const filePath = data?.file_path;
+      if (!filePath) {
+        throw new Error("Upload succeeded but file path was not returned.");
       }
 
-      toast.success("Executed document uploaded/replaced successfully!");
-      setExecutedDocument(uploadedData as ExecutedDocument);
+      toast.success("Executed document uploaded successfully!");
       setSelectedFile(null);
-       if (fileInputRef.current) {
+      if (fileInputRef.current) {
          fileInputRef.current.value = "";
-       }
-      if (onDocumentUploaded) {
-        onDocumentUploaded();
       }
-    } catch (err) {
-      console.error('[CED] Caught error during file upload process.');
+      onUploadSuccess(selectedFile.name, filePath, 'executed_agreement');
+
+    } catch (err: any) {
+      console.error('[CED] Caught error during file upload process:', err);
+      toast.error(`Upload failed: ${err.message || 'Unknown error'}`);
     } finally {
       setIsUploading(false);
     }
   };
 
   const handleDownload = async () => {
-    if (!executedDocument?.file_path || !contractService) {
-         if (!contractService) toast.error("Service not available from context.");
+    if (!executedDocument?.file_path || !fileService) {
+        toast.error("Download failed: Missing file path or service.");
         return;
     }
-
     toast.info("Preparing download...");
     try {
-      const { data, error: downloadError } = await contractService.downloadFile(executedDocument.file_path);
+      const { data, error: downloadError } = await fileService.downloadFile(executedDocument.file_path);
 
-      if (downloadError || !data) {
-          const message = downloadError?.message || 'Failed to download file blob.';
-          toast.error(message);
-          throw new Error(message);
-      }
+      if (downloadError || !data) throw new Error(downloadError?.message || 'Failed to download file blob.');
 
       const url = URL.createObjectURL(data);
       const a = document.createElement('a');
@@ -151,43 +108,39 @@ export function ContractExecutedDocument({ contractId, onDocumentUploaded }: Con
       toast.success("Download started.");
     } catch (err: any) {
       console.error('[CED] Error downloading file:', err);
+      toast.error(`Download failed: ${err.message}`);
     }
   };
 
-  if (isAuthLoading) {
-       return <div>Initializing authentication context...</div>;
-  }
-
-  if (authError) {
-     return <div className="text-red-500">Authentication Error: {authError.message}</div>;
-  }
-
-  if (!contractService && !isAuthLoading) {
-      return <div className="text-red-500">Could not initialize contract service. Check auth context logs.</div>;
-  }
-
-  if (isLoading) {
-      return <div>Loading executed document status...</div>;
-  }
-
-  if (error && !executedDocument) {
-      return <div className="text-red-500">Error loading document status: {error}</div>;
-  }
+  const handleDeleteClick = () => {
+    if (!executedDocument || !organizationId) {
+        toast.error("Cannot delete: Missing file info or Organization ID.");
+        return;
+    }
+    onDelete(executedDocument.id, executedDocument.file_path, contractId, organizationId);
+  };
 
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-medium mb-4">Executed Contract Document</h3>
       <div className="p-4 border rounded-lg bg-white shadow-sm">
-        {executedDocument ? (
+        {isLoading ? (
+          <div>Loading...</div>
+        ) : executedDocument ? (
           <div className="flex items-center justify-between mb-4 pb-4 border-b">
             <div className="flex items-center gap-2 overflow-hidden mr-2 flex-grow">
               <FileText className="h-4 w-4 text-gray-400 flex-shrink-0" />
               <span className="truncate" title={executedDocument.file_name}>{executedDocument.file_name}</span>
             </div>
-            <Button variant="ghost" size="sm" onClick={handleDownload} className="flex-shrink-0">
-              <Download className="h-4 w-4 mr-2" />
-              Download
-            </Button>
+            <div className="flex items-center gap-2 flex-shrink-0">
+                <Button variant="ghost" size="sm" onClick={handleDownload}>
+                  <Download className="h-4 w-4 mr-2" /> Download
+                </Button>
+                 <Button variant="ghost" size="icon" onClick={handleDeleteClick} className="text-red-500 hover:bg-red-100">
+                    <Trash2 className="h-4 w-4" />
+                    <span className="sr-only">Delete Executed Document</span>
+                </Button>
+            </div>
           </div>
         ) : (
           <p className="text-sm text-gray-500 mb-4">No executed document uploaded yet.</p>
@@ -198,45 +151,28 @@ export function ContractExecutedDocument({ contractId, onDocumentUploaded }: Con
                 {executedDocument ? 'Replace Executed Document' : 'Upload Executed Document'}
             </label>
             <Input
-                type="file"
-                accept=".pdf,.doc,.docx"
-                onChange={handleFileSelect}
-                className="hidden"
-                id="executed-contract-upload"
-                ref={fileInputRef}
-                disabled={isUploading}
+              id="executed-contract-upload"
+              type="file"
+              accept=".pdf,.doc,.docx"
+              onChange={handleFileSelect}
+              className="mb-2"
+              ref={fileInputRef}
+              disabled={isUploading}
             />
-            <div className="flex items-center gap-2">
-                <Button 
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploading} 
-                    size="sm"
-                    variant="outline"
-                    className="flex-shrink-0"
-                >
-                     <Upload className="h-4 w-4 mr-2" />
-                     Choose File
-                </Button>
-                <span className="text-sm text-gray-600 truncate flex-grow">
-                    {selectedFile ? selectedFile.name : 'No file chosen'}
-                </span>
-                <Button 
-                    onClick={handleUploadClick}
-                    disabled={!selectedFile || isUploading}
-                    size="sm"
-                    className="flex-shrink-0"
-                >
-                     {isUploading ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                     ) : (
-                        <Upload className="h-4 w-4 mr-2" />
-                     )}
-                     {isUploading ? 'Uploading...' : (executedDocument ? 'Replace Document' : 'Upload Document')}
-                </Button>
-            </div>
-             {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
-         </div>
+            {selectedFile && (
+                 <p className="text-xs text-gray-500 mb-2 truncate">Selected: {selectedFile.name}</p>
+            )}
+            <Button 
+              onClick={handleUploadClick} 
+              disabled={!selectedFile || isUploading}
+              size="sm"
+            >
+              {isUploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin"/> : <Upload className="h-4 w-4 mr-2" />}
+              {isUploading ? 'Uploading...' : (executedDocument ? 'Replace Document' : 'Upload Document')}
+            </Button>
+        </div>
       </div>
     </div>
   );
 }
+

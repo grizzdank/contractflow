@@ -164,31 +164,46 @@ export const contractService = {
     return { data, error };
   },
   
-  async uploadCOIFile(contractId: string, file: File, expirationDate?: string) {
+  async uploadCOIFile(contractId: string, file: File, organizationId: string, expirationDate?: string) {
     try {
+      const session = await supabase.auth.getSession(); // Get session for user ID
+      if (!session.data.session?.user) throw new Error("User not authenticated for COI upload.");
+      const userId = session.data.session.user.id;
+
       const fileExt = file.name.split('.').pop();
       const filePath = `${contractId}/${crypto.randomUUID()}.${fileExt}`;
       
+      // Upload to 'coi_files' bucket
       const { error: uploadError } = await supabase.storage
-        .from('coi_files')
+        .from('coi_files') // COI_BUCKET
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
-      const { data, error: dbError } = await supabase
-        .from('contract_coi_files')
-        .insert({
+      // Insert into 'contract_coi_files' table (soon to be 'contract_documents')
+      const insertPayload = {
           contract_id: contractId,
           file_name: file.name,
           file_path: filePath,
+          uploaded_by: userId,
+          organization_id: organizationId,
+          document_type: 'coi', // New field
+          mime_type: file.type,   // New field
+          file_size: file.size,   // New field
           expiration_date: expirationDate || null,
-        })
+          is_executed_contract: undefined, // Ensure old field not sent / is null
+      };
+
+      const { data, error: dbError } = await supabase
+        .from('contract_coi_files')
+        .insert(insertPayload as any) // Use 'as any' until types are regenerated
         .select()
         .single();
 
       if (dbError) throw dbError;
       
-      return { data, error: null };
+      // Return the full record, which now includes document_type etc.
+      return { data, error: null }; 
     } catch (error) {
       console.error('Error uploading COI file:', error);
       return { data: null, error };
