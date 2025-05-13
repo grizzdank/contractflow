@@ -31,7 +31,8 @@ export function ContractAttachments({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { appUserDetails } = useClerkAuth();
+  const { appUserDetails, services } = useClerkAuth();
+  const contractService = services.contract;
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -52,6 +53,11 @@ export function ContractAttachments({
       setIsUploading(false);
       return;
     }
+    if (!contractService) {
+      toast.error("Cannot upload: Contract service not available.");
+      setIsUploading(false);
+      return;
+    }
 
     setIsUploading(true);
     toast.info(`Uploading ${selectedFile.name}...`);
@@ -67,16 +73,37 @@ export function ContractAttachments({
         if (uploadError) throw uploadError;
 
         const filePath = data?.file_path;
-        if (!filePath) {
-          throw new Error("Upload succeeded but file path was not returned.");
+        const fileId = data?.id;
+        if (!filePath || !fileId) {
+          throw new Error("Upload succeeded but file path or ID was not returned.");
         }
 
         toast.success(`Attachment ${selectedFile.name} uploaded successfully.`);
+        onUploadSuccess(selectedFile.name, filePath, 'general_attachment');
+
+        const auditEntry = {
+            contract_id: contractId,
+            action_type: 'general_attachment_uploaded' as const,
+            changes: {
+                fileName: selectedFile.name,
+                filePath: filePath,
+                fileId: fileId,
+                message: `Uploaded attachment: ${selectedFile.name}`
+            }
+        };
+        console.log("[Attachments] Creating audit entry:", auditEntry);
+        const { error: auditError } = await contractService.addAuditTrailEntry(auditEntry);
+        if (auditError) {
+            console.error("[Attachments] Failed to create audit trail entry:", auditError);
+            toast.warning("File uploaded, but failed to record audit event.");
+        } else {
+             console.log("[Attachments] Audit entry created successfully.");
+        }
+
         setSelectedFile(null);
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
-        onUploadSuccess(selectedFile.name, filePath, 'general_attachment');
 
     } catch (err: any) {
         console.error('[Attachments] Upload error:', err);

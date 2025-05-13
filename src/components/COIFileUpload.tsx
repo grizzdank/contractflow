@@ -41,7 +41,8 @@ export function COIFileUpload({
   const [expirationDate, setExpirationDate] = useState<string>("");
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const { appUserDetails } = useClerkAuth();
+  const { appUserDetails, services } = useClerkAuth();
+  const contractService = services.contract;
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -52,6 +53,11 @@ export function COIFileUpload({
     }
     if (!appUserDetails?.supabaseUserId) {
         setUploadError("Cannot upload: User ID not available.");
+        setIsUploading(false);
+        return;
+    }
+    if (!contractService) {
+        setUploadError("Cannot upload: Contract service not available.");
         setIsUploading(false);
         return;
     }
@@ -72,12 +78,34 @@ export function COIFileUpload({
       if (error) throw error;
 
       const filePath = data?.file_path;
-      if (!filePath) {
-        throw new Error("Upload succeeded but file path was not returned.");
+      const fileId = data?.id;
+      if (!filePath || !fileId) {
+        throw new Error("Upload succeeded but file path or ID was not returned.");
       }
       
       console.log(`[COIUpload] Upload success for ${file.name}. Path: ${filePath}`);
       onUploadSuccess(file.name, filePath, 'coi');
+
+      const auditEntry = {
+          contract_id: contractId,
+          action_type: 'coi_document_uploaded' as const,
+          changes: {
+              fileName: file.name,
+              filePath: filePath,
+              fileId: fileId,
+              expirationDate: expirationDate || null,
+              message: `Uploaded COI: ${file.name}`
+          }
+      };
+      console.log("[COIUpload] Creating audit entry:", auditEntry);
+      const { error: auditError } = await contractService.addAuditTrailEntry(auditEntry);
+      if (auditError) {
+          console.error("[COIUpload] Failed to create audit trail entry:", auditError);
+          toast({ title: "Warning", description: "File uploaded, but failed to record audit event.", variant: "default" });
+      } else {
+           console.log("[COIUpload] Audit entry created successfully.");
+      }
+
     } catch (error: any) {
       console.error('Error uploading COI file:', error);
       setUploadError(error.message || "Failed to upload file.");

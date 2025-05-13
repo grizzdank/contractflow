@@ -188,6 +188,7 @@ const ContractDetails = () => {
   const [isLoadingContract, setIsLoadingContract] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isLoadingFiles, setIsLoadingFiles] = useState(true);
+  const [auditTrailRefreshKey, setAuditTrailRefreshKey] = useState(0);
 
   const {
     getToken,
@@ -254,19 +255,59 @@ const ContractDetails = () => {
     }
   }, [contractNumber, getToken, organizationId]);
 
+  const fetchFiles = useCallback(async (currentContractId?: string) => {
+    const idToFetch = currentContractId || contractId;
+    if (!idToFetch || !fileServiceInstance) {
+      console.log("[ContractDetails] fetchFiles: contractId or fileServiceInstance not available. Skipping fetch.");
+      setIsLoadingFiles(false);
+      return;
+    }
+    console.log(`[ContractDetails] Fetching files for contract ID: ${idToFetch}`);
+    setIsLoadingFiles(true);
+    try {
+      const { data: filesData, error: filesError } = await fileServiceInstance.getContractFiles(idToFetch);
+      if (filesError) throw filesError;
+      if (filesData) {
+        const allDisplayFiles: DisplayFile[] = filesData.map(mapDbToFileCorrected);
+        console.log("[ContractDetails] All fetched files (DisplayFile):", allDisplayFiles);
+        setCoiFiles(allDisplayFiles.filter(f => f.document_type === 'coi'));
+        setExecutedDocument(allDisplayFiles.find(f => f.document_type === 'executed_agreement') || null);
+        setGeneralAttachments(allDisplayFiles.filter(f => f.document_type === 'general_attachment'));
+      } else {
+        setCoiFiles([]);
+        setExecutedDocument(null);
+        setGeneralAttachments([]);
+      }
+    } catch (err) {
+      console.error("Error fetching contract files:", err);
+      toast({
+        title: "Error Fetching Files",
+        description: (err as Error).message || "Could not load contract documents.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingFiles(false);
+    }
+  }, [contractId, fileServiceInstance, mapDbToFileCorrected]);
+
   useEffect(() => {
     console.log(`[ContractDetails] useEffect triggered. AuthLoading: ${isAuthLoading}, OrgID: ${organizationId}, ContractNumber: ${contractNumber}`);
 
     if (!isAuthLoading && contractNumber && organizationId && getToken) {
       console.log("[ContractDetails] Dependencies met, calling loadContract...");
-      loadContract();
+      loadContract().then(loadedContract => {
+        if (loadedContract && loadedContract.id) {
+          console.log("[ContractDetails] Contract loaded, now fetching files for contract ID:", loadedContract.id);
+          fetchFiles(loadedContract.id);
+        }
+      });
     } else {
        console.log("[ContractDetails] Dependencies not met, waiting...");
        if (isAuthLoading) {
            setIsLoadingContract(true); 
        }
     }
-  }, [isAuthLoading, contractNumber, organizationId, getToken, loadContract]);
+  }, [isAuthLoading, contractNumber, organizationId, getToken, loadContract, fetchFiles]);
 
   const handleSave = async () => {
     if (!contract || !getToken || !organizationId || !supabaseUserId || !userEmail || !contractServiceInstance) {
@@ -419,55 +460,63 @@ const ContractDetails = () => {
       addComment(newComment); // Call the actual addComment with the current state value
   };
 
-  useEffect(() => {
-    if (contractId && contractServiceInstance) {
-      const fetchFiles = async () => {
-        setIsLoadingFiles(true);
-        const { data, error } = await contractServiceInstance.getAllContractFiles(contractId);
-        if (error) {
-          toast({ title: "Error fetching files", description: error.message, variant: "destructive" });
-          // setError("Failed to load contract files."); // Assuming setError is defined for this component's errors
-        } else if (data) {
-          const allDisplayFiles: DisplayFile[] = data.map(mapDbToFileCorrected);
-          setCoiFiles(allDisplayFiles.filter(f => f.document_type === 'coi'));
-          setExecutedDocument(allDisplayFiles.find(f => f.document_type === 'executed_agreement') || null);
-          setGeneralAttachments(allDisplayFiles.filter(f => f.document_type === 'general_attachment'));
-        }
-        setIsLoadingFiles(false);
-      };
-      fetchFiles();
-    }
-  }, [contractId, contractServiceInstance]);
-
   const handleFileUploadSuccess = (fileName: string, filePath: string, documentType: string) => {
-    if (contractId && contractServiceInstance) {
-      contractServiceInstance.getAllContractFiles(contractId).then(({ data: fetchedData, error: fetchError }) => {
-        if (fetchError) { /* ... */ } 
-        else if (fetchedData) {
-          const allDisplayFiles: DisplayFile[] = fetchedData.map(mapDbToFileCorrected);
-          setCoiFiles(allDisplayFiles.filter(f => f.document_type === 'coi'));
-          setExecutedDocument(allDisplayFiles.find(f => f.document_type === 'executed_agreement') || null);
-          setGeneralAttachments(allDisplayFiles.filter(f => f.document_type === 'general_attachment'));
-        }
-      });
-    }
-    toast({ title: "Upload Successful", description: `${fileName} uploaded.` });
+    console.log(`[ContractDetails] File upload success: ${fileName}, Type: ${documentType}, Path: ${filePath}. Triggering file list refresh.`);
+    fetchFiles();
+
+    setAuditTrailRefreshKey(prevKey => prevKey + 1);
+    console.log("[ContractDetails] Incremented auditTrailRefreshKey to trigger audit trail refresh.");
+
+    toast({
+      title: "File Uploaded",
+      description: `${fileName} has been successfully uploaded as a ${documentType.replace('_', ' ')}.`,
+    });
   };
 
   const handleDeleteFile = async (fileId: string, filePath: string, delContractId: string, delOrganizationId: string) => {
-    if (contractServiceInstance && delContractId && delOrganizationId) {
+    if (contractServiceInstance && delContractId && delOrganizationId && appUserDetails?.supabaseUserId && appUserDetails?.email) {
        const { error } = await contractServiceInstance.deleteContractFile(filePath, delContractId, delOrganizationId);
         if (!error) {
-            contractServiceInstance.getAllContractFiles(delContractId).then(({ data: fetchedData, error: fetchError }) => {
-                if (fetchError) { /* ... */ }
-                else if (fetchedData) {
-                    const allDisplayFiles: DisplayFile[] = fetchedData.map(mapDbToFileCorrected);
-                    setCoiFiles(allDisplayFiles.filter(f => f.document_type === 'coi'));
-                    setExecutedDocument(allDisplayFiles.find(f => f.document_type === 'executed_agreement') || null);
-                    setGeneralAttachments(allDisplayFiles.filter(f => f.document_type === 'general_attachment'));
-                }
-            });
+            // Refresh file list first
+            fetchFiles(delContractId);
+            
             toast({ title: "File Deleted", description: `File ${filePath} deleted successfully.` });
+
+            // ***** ADD AUDIT TRAIL ENTRY *****
+            // Determine document type from filePath for a more specific audit message if possible
+            let documentTypeForAudit = 'file';
+            if (filePath.includes('/coi/')) documentTypeForAudit = 'COI document';
+            else if (filePath.includes('/executed_agreement/')) documentTypeForAudit = 'executed agreement';
+            else if (filePath.includes('/general_attachment/')) documentTypeForAudit = 'general attachment';
+
+            const auditEntry = {
+                contract_id: delContractId,
+                action_type: 'document_deleted' as const,
+                changes: {
+                    filePath: filePath,
+                    fileId: fileId, // The ID of the DB record that was deleted
+                    message: `Deleted ${documentTypeForAudit}: ${filePath.substring(filePath.lastIndexOf('/') + 1)}`
+                },
+                // performed_by and performed_by_email will be added by addAuditTrailEntry
+            };
+            console.log("[ContractDetails] Creating audit entry for file deletion:", auditEntry);
+            const { error: auditError } = await contractServiceInstance.addAuditTrailEntry(auditEntry);
+            if (auditError) {
+                console.error("[ContractDetails] Failed to create audit trail entry for file deletion:", auditError);
+                toast({
+                    title: "Warning", 
+                    description: "File deleted, but failed to record audit event.",
+                    variant: "default" 
+                });
+            } else {
+                 console.log("[ContractDetails] Audit entry for file deletion created successfully.");
+            }
+            // ***** END AUDIT TRAIL ENTRY *****
+
+            // Increment the key to force ContractAuditTrail to re-render and re-fetch
+            setAuditTrailRefreshKey(prevKey => prevKey + 1);
+            console.log("[ContractDetails] Incremented auditTrailRefreshKey after file deletion.");
+
         } else {
             toast({ title: "Error Deleting File", description: error.message, variant: "destructive" });
         }
@@ -603,7 +652,10 @@ const ContractDetails = () => {
         </Card>
 
          <Card className="p-4 bg-white shadow-sm">
-            <ContractAuditTrail contractId={contract.id} />
+            <ContractAuditTrail 
+              key={auditTrailRefreshKey}
+              contractId={contract.id} 
+            />
           </Card>
 
       </main>

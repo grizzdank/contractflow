@@ -30,7 +30,8 @@ export function ContractExecutedDocument({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { appUserDetails } = useClerkAuth();
+  const { appUserDetails, services } = useClerkAuth();
+  const contractService = services.contract;
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -51,6 +52,11 @@ export function ContractExecutedDocument({
       setIsUploading(false);
       return;
     }
+    if (!contractService) {
+      toast.error("Cannot upload: Contract service not available.");
+      setIsUploading(false);
+      return;
+    }
 
     setIsUploading(true);
     toast.info(`Uploading ${selectedFile.name}...`);
@@ -67,16 +73,39 @@ export function ContractExecutedDocument({
       if (uploadError) throw uploadError;
 
       const filePath = data?.file_path;
-      if (!filePath) {
-        throw new Error("Upload succeeded but file path was not returned.");
+      const fileId = data?.id;
+      if (!filePath || !fileId) {
+        throw new Error("Upload succeeded but file path or ID was not returned.");
       }
 
       toast.success("Executed document uploaded successfully!");
+      onUploadSuccess(selectedFile.name, filePath, 'executed_agreement');
+
+      const actionType = executedDocument ? 'executed_document_replaced' : 'executed_document_uploaded';
+      const auditEntry = {
+          contract_id: contractId,
+          action_type: actionType,
+          changes: {
+              fileName: selectedFile.name,
+              filePath: filePath,
+              fileId: fileId,
+              message: `${actionType === 'executed_document_replaced' ? 'Replaced' : 'Uploaded'} executed document: ${selectedFile.name}`,
+              ...(actionType === 'executed_document_replaced' && executedDocument ? { oldFilePath: executedDocument.file_path } : {})
+          }
+      };
+      console.log(`[CED] Creating audit entry (${actionType}):`, auditEntry);
+      const { error: auditError } = await contractService.addAuditTrailEntry(auditEntry);
+      if (auditError) {
+          console.error(`[CED] Failed to create audit trail entry (${actionType}):`, auditError);
+          toast.warning("File uploaded, but failed to record audit event.");
+      } else {
+           console.log(`[CED] Audit entry created successfully (${actionType}).`);
+      }
+
       setSelectedFile(null);
       if (fileInputRef.current) {
          fileInputRef.current.value = "";
       }
-      onUploadSuccess(selectedFile.name, filePath, 'executed_agreement');
 
     } catch (err: any) {
       console.error('[CED] Caught error during file upload process:', err);

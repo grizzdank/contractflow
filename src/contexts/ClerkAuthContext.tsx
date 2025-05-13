@@ -13,12 +13,19 @@ interface AppUserDetails {
     role: string | null; 
 }
 
+// Define the structure for the services object
+interface AppServices {
+    contract: IContractService | null;
+    file: IFileService | null;
+}
+
 export interface ClerkAuthContextType { 
     isLoading: boolean;
     authError: Error | null;
     getToken: GetTokenFn;
     contractServiceInstance: IContractService | null;
-    fileServiceInstance: IFileService | null; 
+    fileServiceInstance: IFileService | null;
+    services: AppServices;
     appUserDetails: AppUserDetails;
     isAuthenticated: boolean;
 }
@@ -121,6 +128,10 @@ export const ClerkAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         getToken,
         contractServiceInstance,
         fileServiceInstance,
+        services: {
+            contract: contractServiceInstance,
+            file: fileServiceInstance
+        },
         appUserDetails,
         isAuthenticated,
     };
