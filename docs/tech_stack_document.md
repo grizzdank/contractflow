@@ -18,7 +18,7 @@ ContractFlo is designed to be scalable and reliable. The platform is built with 
 
 ## Third-Party Integrations
 
-To extend the core functionality of contract management, ContractFlo integrates several third-party services. For payment processing, Stripe is our choice, ensuring secure and seamless handling of subscription billing and tiered pricing models. There is also built-in support for multiple e-signature providers including DocuSign, Adobe Sign, RightSignature, and PandaDoc, allowing users to choose the service that best fits their needs. Additionally, optional integration with GPT-4o and Claude 3.7 Sonnet allows for potential AI-driven features like automated contract summaries or response generation, enhancing the platform's capabilities.
+To extend the core functionality of contract management, ContractFlo integrates several third-party services. For payment processing, Stripe is our choice, ensuring secure and seamless handling of subscription billing and tiered pricing models. There is also built-in support for multiple e-signature providers including DocuSign, Adobe Sign, RightSignature, and PandaDoc, allowing users to choose the service that best fits their needs. For AI-powered features like SOW generation, the platform uses OpenRouter as an LLM gateway, enabling flexible model selection (Claude, GPT-4, Llama, etc.) without vendor lock-in. This powers the AI SOW Generator at `/sow-generator`.
 
 ## Security and Performance Considerations
 

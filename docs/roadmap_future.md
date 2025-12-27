@@ -122,7 +122,10 @@
   - [ ] Clause library
 
 - [ ] AI-powered features
-  - [ ] SOW generation
+  - [x] SOW generation (MVP at /sow-generator - OpenRouter integration)
+  - [ ] SOW rich text editing (TipTap)
+  - [ ] SOW PDF/Word export
+  - [ ] SOW save & custom templates
   - [ ] Contract analysis and risk assessment
   - [ ] Automated metadata extraction
   - [ ] Intelligent contract recommendations
