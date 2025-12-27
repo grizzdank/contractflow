@@ -11,6 +11,7 @@ import WaitlistPage from "@/pages/public/Waitlist";
 import ContactPage from "@/pages/public/Contact";
 import TermsPage from "@/pages/public/TermsPage";
 import PrivacyPage from "@/pages/public/PrivacyPage";
+import SOWGenerator from "@/pages/public/SOWGenerator";
 import Index from "@/pages/dashboard/Index";
 import Contracts from "@/pages/dashboard/Contracts";
 import ContractDetails from "@/pages/dashboard/ContractDetails";
@@ -60,7 +61,8 @@ const AppRoutes = () => {
       <Route path="/contact" element={<ContactPage />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
-      
+      <Route path="/sow-generator" element={<SOWGenerator />} />
+
       {/* Auth routes - Render Auth directly */}
       <Route 
         path="/auth"

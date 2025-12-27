@@ -9,6 +9,9 @@ const PublicNavigation = () => (
         <span>ContractFlo.ai</span>
       </Link>
       <div className="flex items-center gap-4">
+        <Link to="/sow-generator" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          SOW Generator
+        </Link>
         <Link to="/auth">
           <Button variant="ghost">Login</Button>
         </Link>
