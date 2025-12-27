@@ -1,0 +1,3 @@
+{"id":{"node_type":"decision","hash":"7wx"},"title":"SOW Generator as standalone wedge product","status":"accepted","created":"2025-12-27T23:00:13.271206Z","updated":"2025-12-27T23:01:46.054066Z","tags":["product","strategy"]}
+{"id":{"node_type":"decision","hash":"9kl"},"title":"OpenRouter for LLM integration instead of direct API","status":"accepted","created":"2025-12-27T23:00:45.759201Z","updated":"2025-12-27T23:01:46.060631Z","tags":["architecture","ai"]}
+{"id":{"node_type":"decision","hash":"xmb"},"title":"Freemium with session-based rate limiting for anonymous users","status":"accepted","created":"2025-12-27T23:01:04.498741Z","updated":"2025-12-27T23:01:46.065014Z","tags":["product","architecture"]}
